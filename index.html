@@ -235,6 +235,16 @@ body{
 
 /* barra de vida: de verde a rojo a medida que se le acaba la semana */
 .barra.vida i{background:linear-gradient(90deg,#ff6b5c 0%, #ffc107 35%, var(--savia) 100%);}
+.parcela.cerrado{filter:grayscale(.6) brightness(.6);}
+.parcela .candado{
+  position:absolute; inset:0; display:grid; place-items:center; gap:1px;
+  pointer-events:none; text-align:center;
+}
+.parcela .candado .llave{font-size:19px; line-height:1;}
+.parcela .candado .precio{
+  font-size:9px; font-weight:800; color:var(--crema);
+  background:rgba(20,14,5,.85); border-radius:6px; padding:1px 6px;
+}
 .parcela .dias{
   position:absolute; right:16%; bottom:4%;
   font-size:8.5px; font-weight:800; color:var(--crema);
@@ -731,6 +741,27 @@ const INSUMOS = {
   humo: {nom:'Humo',  ico:'humo',  costo:18, desc:'Espanta la plaga. Con plaga, la abeja no produce.'}
 };
 
+/* Los dos primeros panales vienen abiertos. Los otros se compran con
+   néctar Y sólo aceptan abejas de cierta rareza para arriba: eso es lo
+   que sostiene el modelo, porque obliga a reponer una abeja cara en
+   BUZZ cada vez que se muere, no sólo a pagar el desbloqueo una vez. */
+const RAREZA_ORDEN = ['comun','rara','epica','legendaria'];
+
+/* Los panales van de a pares y cada par tiene un TECHO de rareza: en los
+   dos primeros no entra una Cósmica por más que la tengas. Para usar las
+   abejas buenas hay que abrir los panales de arriba con néctar, así que
+   el néctar deja de ser sólo algo para vender. */
+const PANALES = [
+  {costo:0,    tope:'rara'},
+  {costo:100,  tope:'rara'},
+  {costo:500,  tope:'epica'},
+  {costo:500,  tope:'epica'},
+  {costo:1500, tope:'legendaria'},
+  {costo:1500, tope:'legendaria'}
+];
+const entra = (tipo, i) =>
+  RAREZA_ORDEN.indexOf(ABEJAS[tipo].rareza) <= RAREZA_ORDEN.indexOf(PANALES[i].tope);
+
 // posición de cada panal sobre la imagen del campo, en % del lienzo
 const POSICIONES = [
   {x:32, y:46.5}, {x:68, y:46.5},
@@ -745,6 +776,7 @@ const S = {
          buzz:  {ap:0, pa:0, gratis:0, usados:0, dia:0, ultimoGratis:0, apuestas:null} },
   mochila:Object.fromEntries(Object.keys(ABEJAS).map(k => [k, k === 'obrera' ? 1 : 0])),
   insumos:{polen:2, humo:1},
+  abiertos:1,                 // los otros cinco se compran con néctar
   panales:Array(6).fill(null)
 };
 let elegido = null, pestana = 'abejas', filtro = 'todas';
@@ -827,12 +859,17 @@ function pintarParcelas(){
   S.panales.forEach((b, i) => {
     const p = cajas[i];
     if(!p) return;
-    const firma = b ? b.tipo : 'vacio';
+    const firma = i >= S.abiertos ? 'cerrado' : (b ? b.tipo : 'vacio');
 
     // el contenido sólo se rehace si cambió QUÉ hay en el panal
     if(p.dataset.firma !== firma){
       p.dataset.firma = firma;
-      if(!b){
+      if(i >= S.abiertos){
+        p.innerHTML = '<div class="candado"><div><div class="llave">🔒</div>' +
+          '<div class="precio">' + PANALES[i].costo + ' néctar</div>' +
+          '<div class="precio" style="color:'+RAREZAS[PANALES[i].tope].color+'; margin-top:2px">' +
+          RAREZAS[PANALES[i].tope].nom + '</div></div></div>';
+      }else if(!b){
         p.innerHTML = '<span class="mas">+</span>';
       }else{
         const a = ABEJAS[b.tipo];
@@ -847,6 +884,7 @@ function pintarParcelas(){
       }
     }
 
+    if(i >= S.abiertos){ p.className = 'parcela cerrado'; return; }
     if(!b){ p.className = 'parcela'; return; }
 
     const a = ABEJAS[b.tipo];
@@ -868,7 +906,8 @@ function pintarParcelas(){
   });
 
   const ocupados = S.panales.filter(Boolean).length;
-  document.getElementById('conteoPanales').textContent = ocupados + '/6 panales';
+  document.getElementById('conteoPanales').textContent =
+    ocupados + '/' + S.abiertos + ' panales';
 
   const hay = S.panales.filter(b => b && b.miel >= 1);
   const btn = document.getElementById('cosecharTodo');
@@ -892,10 +931,30 @@ function tocar(i){
   const b = S.panales[i];
   const caja = document.getElementById('cajaPanal');
 
+  if(i >= S.abiertos){
+    const p = PANALES[i];
+    const rar = RAREZAS[p.tope];
+    const puede = i === S.abiertos;          // se abren en orden
+    caja.innerHTML = '<div class="tira"></div><h2>Panal cerrado</h2>' +
+      '<p class="sub">' +
+        (puede ? 'Abrilo con néctar. Acá entran abejas hasta <b style="color:'+rar.color+'">'
+                 + rar.nom + '</b>: es el único lugar donde vas a poder usarlas.'
+               : 'Primero abrí el panal anterior.') + '</p>' +
+      '<div class="dato"><span>Cuesta</span><b>' + p.costo + ' néctar</b></div>' +
+      '<div class="dato"><span>Acepta hasta</span><b style="color:'+rar.color+'">' + rar.nom + '</b></div>' +
+      '<div class="dato"><span>Tenés</span><b>' + red(S.nectar) + ' néctar</b></div>' +
+      '<button class="grande" onclick="abrirPanal()"' +
+        (puede && S.nectar >= p.costo ? '' : ' disabled') + '>Abrir por ' + p.costo + ' néctar</button>' +
+      '<button class="grande gris" onclick="cerrar(\'panal\')">Cerrar</button>';
+    abrir('panal'); return;
+  }
+
   if(!b){
     const tengo = Object.entries(S.mochila).filter(([,c]) => c > 0);
     caja.innerHTML = '<div class="tira"></div><h2>Panal vacío</h2>' +
-      '<p class="sub">Poné una abeja. Acordate de darle de comer o deja de producir.</p>' +
+      '<p class="sub">Poné una abeja. Acordate de darle de comer o deja de producir.' +
+      ' Acá entran abejas hasta <b style="color:'+RAREZAS[PANALES[i].tope].color+'">'
+        + RAREZAS[PANALES[i].tope].nom + '</b>.' + '</p>' +
       (tengo.length
         ? tengo.map(([t,c]) => filaAbeja(t, 'tenés '+c, 'poner', 'Poner')).join('')
         : '<div class="nada">No te queda ninguna abeja.<br>Comprá en la tienda.</div>') +
@@ -947,8 +1006,21 @@ function filaAbeja(t, nota, fn, txt){
     '</div></div>';
 }
 
+function abrirPanal(){
+  const i = elegido, p = PANALES[i];
+  if(i !== S.abiertos || S.nectar < p.costo) return;
+  S.nectar -= p.costo;
+  S.abiertos++;
+  cerrar('panal'); refrescar();
+  avisar('Panal ' + (i+1) + ' abierto · -' + p.costo + ' néctar');
+}
+
 function poner(t){
   if(S.mochila[t] <= 0) return;
+  if(!entra(t, elegido)){
+    avisar('En este panal sólo entran hasta ' + RAREZAS[PANALES[elegido].tope].nom);
+    return;
+  }
   const a = ABEJAS[t];
   S.mochila[t]--;
   const n = ahora();
