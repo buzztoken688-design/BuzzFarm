@@ -602,6 +602,11 @@ body{
     <p class="nota">Cómo gira: comprás la abeja con BUZZ, la abeja hace miel, la miel vuelve a ser BUZZ. Lo que gastás en abejas y comida no se quema — vuelve a la reserva del juego, que es de donde sale la producción.</p>
 
     <div class="dato" style="margin-top:14px">
+      <span>Prueba: valor del BUZZ<br><small style="color:var(--tenue)" id="txtPrecio"></small></span>
+      <button class="acc" onclick="simularPrecio()">Cambiar</button>
+    </div>
+
+    <div class="dato">
       <span>Reloj del juego<br><small style="color:var(--tenue)" id="txtVel">tiempo real</small></span>
       <button class="acc" onclick="alternarVelocidad()" id="btnVel">Acelerar</button>
     </div>
@@ -718,6 +723,23 @@ const ICO = {
    =================================================================== */
 
 const red = n => Math.round(n*10)/10;
+const red2 = n => Math.round(n*100)/100;
+
+/* ---- precios estables por dentro ----
+   De cara al jugador el juego es 100% BUZZ: no ve otra moneda ni puede
+   depositar nada más. Pero por dentro los precios están calibrados
+   contra un valor de referencia, y el contrato cotiza el pool para
+   aplicar el mismo factor a TODO: lo que cuesta la abeja, lo que come y
+   lo que produce. Así, si el BUZZ sube, la abeja pide menos BUZZ pero
+   también produce menos, y el jugador siempre pone y recibe el mismo
+   valor real. Si se indexara sólo el precio y la producción quedara
+   fija, al subir el BUZZ el jugador ganaría el doble y el juego se
+   volvería una máquina de imprimir. */
+const PRECIO_BASE = 0.03;        // valor de referencia con el que se calibró todo
+let precioBuzz = 0.03;           // sale del pool; en la maqueta se simula
+const factor = () => PRECIO_BASE / precioBuzz;
+const enBuzz = v => red2(v / precioBuzz);   // pasa un valor de referencia a BUZZ
+
 const DIA = 86400;           // un día es un día: 24 horas de verdad
 const PLAGA_CADA = 2;        // en promedio, una plaga por abeja cada 2 días
 const MIEL_POR_BUZZ = 10;        // 10 miel = 1 BUZZ
@@ -778,14 +800,18 @@ const RAREZA_ORDEN = ['comun','rara','epica','legendaria'];
    dos primeros no entra una Cósmica por más que la tengas. Para usar las
    abejas buenas hay que abrir los panales de arriba, y eso devuelve
    BUZZ a la reserva. */
+/* Cada panal tiene un valor de referencia interno. El BUZZ que se cobra
+   sale de cotizarlo al precio del momento: si el BUZZ sube, hacen falta
+   menos; si baja, más. El jugador sólo ve la cifra en BUZZ. */
 const PANALES = [
-  {costo:0,   tope:'rara'},
-  {costo:40,  tope:'rara'},
-  {costo:150, tope:'epica'},
-  {costo:150, tope:'epica'},
-  {costo:400, tope:'legendaria'},
-  {costo:400, tope:'legendaria'}
+  {wld:0,  tope:'rara'},
+  {wld:1,  tope:'rara'},
+  {wld:4,  tope:'epica'},
+  {wld:4,  tope:'epica'},
+  {wld:10, tope:'legendaria'},
+  {wld:10, tope:'legendaria'}
 ];
+const costoPanal = i => enBuzz(PANALES[i].wld);
 const entra = (tipo, i) =>
   RAREZA_ORDEN.indexOf(ABEJAS[tipo].rareza) <= RAREZA_ORDEN.indexOf(PANALES[i].tope);
 
@@ -853,7 +879,7 @@ function latir(){
     }
     if(b.plaga || b.comeHasta <= t) return;          // con plaga o con hambre no produce
     const a = ABEJAS[b.tipo];
-    b.miel = Math.min(a.tope, b.miel + a.miel * dt / DIA);
+    b.miel = Math.min(a.tope, b.miel + a.miel * factor() * dt / DIA);
   });
 }
 
@@ -893,7 +919,7 @@ function pintarParcelas(){
       p.dataset.firma = firma;
       if(i >= S.abiertos){
         p.innerHTML = '<div class="candado"><div><div class="llave">🔒</div>' +
-          '<div class="precio">' + PANALES[i].costo + ' BUZZ</div>' +
+          '<div class="precio">' + costoPanal(i) + ' BUZZ</div>' +
           '<div class="precio" style="color:'+RAREZAS[PANALES[i].tope].color+'; margin-top:2px">' +
           RAREZAS[PANALES[i].tope].nom + '</div></div></div>';
       }else if(!b){
@@ -959,6 +985,7 @@ function tocar(i){
 
   if(i >= S.abiertos){
     const p = PANALES[i];
+    const costoAbrir = costoPanal(i);
     const rar = RAREZAS[p.tope];
     const puede = i === S.abiertos;          // se abren en orden
     caja.innerHTML = '<div class="tira"></div><h2>Panal cerrado</h2>' +
@@ -966,11 +993,11 @@ function tocar(i){
         (puede ? 'Abrilo con BUZZ. Acá entran abejas hasta <b style="color:'+rar.color+'">'
                  + rar.nom + '</b>: es el único lugar donde vas a poder usarlas.'
                : 'Primero abrí el panal anterior.') + '</p>' +
-      '<div class="dato"><span>Cuesta</span><b>' + p.costo + ' BUZZ</b></div>' +
+      '<div class="dato"><span>Cuesta</span><b>' + costoPanal(i) + ' BUZZ</b></div>' +
       '<div class="dato"><span>Acepta hasta</span><b style="color:'+rar.color+'">' + rar.nom + '</b></div>' +
       '<div class="dato"><span>Tenés</span><b>' + red(S.buzz) + ' BUZZ</b></div>' +
       '<button class="grande" onclick="abrirPanal()"' +
-        (puede && S.buzz >= p.costo ? '' : ' disabled') + '>Abrir por ' + p.costo + ' BUZZ</button>' +
+        (puede && S.buzz >= costoPanal(i) ? '' : ' disabled') + '>Abrir por ' + costoPanal(i) + ' BUZZ</button>' +
       '<button class="grande gris" onclick="cerrar(\'panal\')">Cerrar</button>';
     abrir('panal'); return;
   }
@@ -995,7 +1022,7 @@ function tocar(i){
   const comidaQueda = Math.max(0, dias(b.comeHasta - t));
   const vidaQueda = Math.max(0, dias(b.muereEn - t));
   const puedeComer = Math.max(0, Math.min(3 * DIA, b.muereEn - Math.max(t, b.comeHasta)));
-  const costo3 = red(a.comida * puedeComer / DIA);
+  const costo3 = red2(a.comida * puedeComer / DIA * factor());
 
   caja.innerHTML = '<div class="tira"></div>' +
     '<h2>'+a.nom+' <span class="rar" style="color:'+a.color+'; border-color:'+a.color+'">'+RAREZAS[a.rareza].nom+'</span></h2>' +
@@ -1036,11 +1063,12 @@ function filaAbeja(t, nota, fn, txt){
 
 function abrirPanal(){
   const i = elegido, p = PANALES[i];
-  if(i !== S.abiertos || S.buzz < p.costo) return;
-  S.buzz -= p.costo;
+  const costo = costoPanal(i);
+  if(i !== S.abiertos || S.buzz < costo) return;
+  S.buzz -= costo;
   S.abiertos++;
   cerrar('panal'); refrescar();
-  avisar('Panal ' + (i+1) + ' abierto · -' + p.costo + ' BUZZ');
+  avisar('Panal ' + (i+1) + ' abierto · -' + costo + ' BUZZ');
 }
 
 function poner(t){
@@ -1071,7 +1099,7 @@ function alimentar(){
   const puede = Math.max(0, Math.min(3 * DIA, b.muereEn - desde));
   if(puede <= 0){ avisar('Ya tiene comida para toda su vida'); return; }
   const dias = puede / DIA;
-  const costo = red(a.comida * dias);
+  const costo = red2(a.comida * dias * factor());
   if(S.buzz < costo){ avisar('Te falta BUZZ'); return; }
   S.buzz -= costo;
   b.comeHasta = desde + puede;
@@ -1131,12 +1159,11 @@ function verTienda(cual){
     }).join('');
     const lista = Object.entries(ABEJAS).filter(([,a]) => filtro === 'todas' || a.rareza === filtro);
     listaTienda.innerHTML = lista.map(([t,a]) => {
-      const puede = S.buzz >= a.costo;
+      const puede = S.buzz >= red2(a.costo * factor());
       return '<div class="item"><img class="bicho" style="border-color:'+a.color+'" src="'+ICO[a.ico]+'" alt="">' +
         '<div class="info"><b>'+a.nom+'</b><small>'+a.desc+'</small>' +
         '<span class="rar" style="color:'+a.color+'; border-color:'+a.color+'">'+RAREZAS[a.rareza].nom+'</span></div>' +
-        '<div class="lado"><span class="n">'+a.costo+' BUZZ</span>' +
-        '<span class="n" style="font-size:9px; color:var(--tenue)">≈ '+(a.costo*PRECIO_BUZZ).toFixed(2)+' WLD</span>' +
+        '<div class="lado"><span class="n">'+red2(a.costo*factor())+' BUZZ</span>' +
         '<button class="acc" onclick="comprarAbeja(\''+t+'\')"'+(puede?'':' disabled')+'>Comprar</button>' +
         '</div></div>';
     }).join('') || '<div class="nada">Nada en esta rareza.</div>';
@@ -1153,12 +1180,12 @@ function verTienda(cual){
 function filtrar(r){ filtro = r; verTienda('abejas'); }
 
 function comprarAbeja(t){
-  const a = ABEJAS[t];
-  if(S.buzz < a.costo) return;
-  S.buzz -= a.costo;          // va a la reserva del juego, NO se quema
+  const a = ABEJAS[t], costo = red2(a.costo * factor());
+  if(S.buzz < costo) return;
+  S.buzz -= costo;            // va a la reserva del juego, NO se quema
   S.mochila[t]++;
   refrescar(); verTienda('abejas');
-  avisar(a.nom + ' comprada · -' + a.costo + ' BUZZ');
+  avisar(a.nom + ' comprada · -' + costo + ' BUZZ');
 }
 function comprarInsumo(t){
   const a = INSUMOS[t];
@@ -1193,9 +1220,23 @@ function verMercado(){
   document.getElementById('retiradoDisp').textContent = red(S.retirado) + ' BUZZ';
   quemadoDisp.textContent = red(S.quemado) + ' BUZZ';
 
+  const mult = PRECIO_BASE / precioBuzz;
+  document.getElementById('txtPrecio').textContent =
+    mult === 1 ? 'normal'
+    : mult < 1 ? 'el BUZZ subió: todo cuesta ' + red2(mult) + '× en BUZZ'
+               : 'el BUZZ bajó: todo cuesta ' + red2(mult) + '× en BUZZ';
   document.getElementById('txtVel').textContent =
     VEL === 1 ? 'tiempo real: un día dura un día' : 'modo prueba: un día dura un minuto';
   document.getElementById('btnVel').textContent = VEL === 1 ? 'Acelerar' : 'Tiempo real';
+}
+/* Sólo para probar: hace de cuenta que el pool movió el precio y muestra
+   cómo se reacomodan todos los precios del juego. */
+const PRECIOS_PRUEBA = [0.015, 0.03, 0.06, 0.12];
+function simularPrecio(){
+  const i = PRECIOS_PRUEBA.indexOf(precioBuzz);
+  precioBuzz = PRECIOS_PRUEBA[(i + 1) % PRECIOS_PRUEBA.length];
+  avisar('Precio simulado cambiado · todo se recalculó');
+  refrescar(); verMercado(); verTienda(pestana);
 }
 function alternarVelocidad(){
   ponerVelocidad(VEL === 1 ? 1440 : 1);
@@ -1734,7 +1775,6 @@ const APP_ID   = 'app_3e9c2f5581972d797aedb86a4c34c3d4';
 const TOKEN    = '0xf9f44acea8d3f7f34ff9766cbbe5293f11b719fe';
 const RPC_URL  = 'https://worldchain-mainnet.g.alchemy.com/public';
 const CHAIN_ID = 480;
-const PRECIO_BUZZ = 0.03;   // WLD por BUZZ, hasta que lo lea del pool
 
 let wallet = null;
 
