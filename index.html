@@ -543,7 +543,7 @@ body{
     <div class="recursos">
       <div class="tarjeta"><img data-ico="buzz" alt=""><div><div class="val" id="vBuzz">0</div><div class="nom">BUZZ</div></div></div>
       <div class="tarjeta"><img data-ico="miel" alt=""><div><div class="val" id="vMiel">0</div><div class="nom">MIEL</div></div></div>
-      <div class="tarjeta"><img data-ico="nectar" alt=""><div><div class="val" id="vNectar">0</div><div class="nom">NÉCTAR</div></div></div>
+      </div>
     </div>
   </div>
 </div>
@@ -581,25 +581,26 @@ body{
 
 <div class="hoja" id="hMercado" onclick="if(event.target===this) cerrar('mercado')">
   <div class="caja"><div class="tira"></div><h2>Mercado</h2>
-    <p class="sub">La miel no se vende: se cambia por néctar. El néctar es el que tiene pool y precio.</p>
+    <p class="sub">La miel se cambia por BUZZ. El BUZZ queda guardado en el juego hasta que lo retires a tu wallet.</p>
 
     <div class="item">
       <img data-ico="miel" src="" alt="">
-      <div class="info"><b>Cambiar miel por néctar</b><small>10 miel = 1 néctar</small></div>
+      <div class="info"><b>Cambiar miel por BUZZ</b><small>10 miel = 1 BUZZ</small></div>
       <div class="lado"><span class="n" id="mielDisp">0</span></div>
     </div>
     <button class="grande" id="btnCambiar" onclick="cambiarMiel()">Cambiar toda la miel</button>
 
     <div class="item" style="margin-top:14px">
-      <img data-ico="nectar" src="" alt="">
-      <div class="info"><b>Vender néctar</b><small>Precio del pool: 0,05 WLD por néctar</small></div>
-      <div class="lado"><span class="n" id="nectarDisp">0</span></div>
+      <img data-ico="buzz" src="" alt="">
+      <div class="info"><b>Retirar a tu wallet</b><small id="txtQuema">Se quema 0,50% al retirar</small></div>
+      <div class="lado"><span class="n" id="buzzDisp">0</span></div>
     </div>
-    <button class="grande gris" id="btnVender" onclick="venderNectar()">Vender todo el néctar</button>
-    <p class="nota">Ojo: el néctar también es la comida de tus abejas. Si lo vendés todo, dejan de producir.</p>
+    <button class="grande gris" id="btnRetirar" onclick="retirar()">Retirar todo</button>
 
-    <div class="dato" style="margin-top:12px"><span>BUZZ quemado por tu colmena</span><b id="quemadoDisp">0</b></div>
-    <p class="nota">Cómo gira: comprás la abeja con BUZZ y ese BUZZ se quema para siempre. La abeja hace miel, la miel se cambia por néctar, y el néctar o lo vendés o se lo das de comer. A la semana la abeja muere y volvés a empezar.</p>
+    <div class="dato" style="margin-top:12px"><span>Ya retirado</span><b id="retiradoDisp">0 BUZZ</b></div>
+    <div class="dato"><span>Quemado al retirar</span><b id="quemadoDisp">0 BUZZ</b></div>
+    <p class="nota">Cómo gira: comprás la abeja con BUZZ, la abeja hace miel, la miel vuelve a ser BUZZ. Lo que gastás en abejas y comida no se quema — vuelve a la reserva del juego, que es de donde sale la producción.</p>
+
     <div class="dato" style="margin-top:14px">
       <span>Reloj del juego<br><small style="color:var(--tenue)" id="txtVel">tiempo real</small></span>
       <button class="acc" onclick="alternarVelocidad()" id="btnVel">Acelerar</button>
@@ -612,14 +613,13 @@ body{
 
     <div class="cabezal">
       <h2>LA MÁQUINA</h2>
-      <span class="saldo"><img data-ico="nectar" alt=""><span id="saldoNec">0</span></span>
+      <span class="saldo"><img data-ico="buzz" alt=""><span id="saldoNec">0</span></span>
       <button class="ayuda" onclick="verReglas(true)">?</button>
     </div>
 
     <div class="marco"><div class="maquina" id="maquina"></div></div>
     <div class="cartel">36 CASILLAS · TODAS PAGAN IGUAL · ¡SUERTE PURA!</div>
 
-    <div class="monedasFila" id="monedas"></div>
     <div class="fichasFila" id="fichas"></div>
     <div class="apostador" id="apostador"></div>
     <div class="gratisBadge" id="badgeGratis">★ GIRO GRATIS DE LA CASA ★</div>
@@ -710,17 +710,18 @@ const ICO = {
 /* ===================================================================
    ECONOMÍA
    BUZZ  → se compra afuera, se gasta en abejas y SE QUEMA (suministro fijo)
-   MIEL  → lo que produce la abeja. No se vende: se cambia por néctar
-   NÉCTAR→ el token con pool y precio. Se vende, o se gasta en mantener
-           a las abejas (si no comen, dejan de producir)
+   MIEL  → lo que produce la abeja. No se vende: se cambia por BUZZ
+           a 10:1. El BUZZ de las compras y la comida vuelve a la
+           reserva del juego, que es de donde sale la producción.
    La abeja vive un tiempo limitado (una semana la más barata) y después
    muere: hay que volver a comprar y se vuelve a quemar BUZZ.
    =================================================================== */
 
+const red = n => Math.round(n*10)/10;
 const DIA = 86400;           // un día es un día: 24 horas de verdad
 const PLAGA_CADA = 2;        // en promedio, una plaga por abeja cada 2 días
-const MIEL_POR_NECTAR = 10;  // 10 miel = 1 néctar
-const PRECIO_NECTAR = 0.05;  // WLD por néctar (de mentira, representa el pool)
+const MIEL_POR_BUZZ = 10;        // 10 miel = 1 BUZZ
+const QUEMA_RETIRO  = 0.005;    // 0,50% se quema al pasar el BUZZ a la wallet
 
 const RAREZAS = {
   comun:      {nom:'Común',      color:'#a8b49a'},
@@ -729,57 +730,61 @@ const RAREZAS = {
   legendaria: {nom:'Legendaria', color:'#ffb300'}
 };
 
-/* costo  = BUZZ que se quema al comprarla
-   dias   = cuánto vive antes de morir (la más barata, una semana)
-   miel   = miel que produce por día
-   comida = néctar que come por día; si no come, no produce
-   La abeja cara vive más, produce más y deja mejor margen. */
+/* Un solo token. La abeja se paga en BUZZ, come BUZZ y produce miel;
+   la miel se cambia por BUZZ a 10:1. El BUZZ de la compra y de la comida
+   NO se quema: vuelve a la reserva del juego, que es de donde sale la
+   producción. Por eso el suministro puede ser fijo sin minteo.
+   El margen sube con la rareza: 12% las comunes, 14% raras, 16% épicas,
+   18% legendarias, siempre sobre lo que el jugador gasta. */
 const ABEJAS = {
-  obrera:    {nom:'Obrera',    ico:'obrera',    rareza:'comun',      costo:10,  dias:7,  miel:26,  comida:0.7},
-  selvatica: {nom:'Selvática', ico:'selvatica', rareza:'comun',      costo:16,  dias:8,  miel:37,  comida:1.0},
-  mielera:   {nom:'Mielera',   ico:'mielera',   rareza:'rara',       costo:24,  dias:9,  miel:52,  comida:1.3},
-  florista:  {nom:'Florista',  ico:'florista',  rareza:'rara',       costo:30,  dias:9,  miel:67,  comida:1.7},
-  minera:    {nom:'Minera',    ico:'minera',    rareza:'rara',       costo:36,  dias:10, miel:72,  comida:1.8},
-  escarcha:  {nom:'Escarcha',  ico:'escarcha',  rareza:'epica',      costo:48,  dias:11, miel:92,  comida:2.2},
-  ignea:     {nom:'Ígnea',     ico:'ignea',     rareza:'epica',      costo:56,  dias:11, miel:107, comida:2.5},
-  dulce:     {nom:'Dulce',     ico:'dulce',     rareza:'epica',      costo:64,  dias:12, miel:115, comida:2.7},
-  reina:     {nom:'Reina',     ico:'reina',     rareza:'legendaria', costo:90,  dias:13, miel:152, comida:3.5},
-  guardiana: {nom:'Guardiana', ico:'guardiana', rareza:'legendaria', costo:115, dias:13, miel:195, comida:4.4, inmune:true},
-  cristal:   {nom:'Cristal',   ico:'cristal',   rareza:'legendaria', costo:145, dias:14, miel:233, comida:5.2, inmune:true},
-  cosmica:   {nom:'Cósmica',   ico:'cosmica',   rareza:'legendaria', costo:185, dias:14, miel:304, comida:6.6, inmune:true}
+  obrera:     {nom:'Obrera',            ico:'obrera',     rareza:'comun',      costo:10,  dias:7,  miel:20,  comida:0.35},
+  selvatica:  {nom:'Selvática',         ico:'selvatica',  rareza:'comun',      costo:16,  dias:8,  miel:29,  comida:0.56},
+  mielera:    {nom:'Mielera',           ico:'mielera',    rareza:'rara',       costo:24,  dias:9,  miel:40,  comida:0.84},
+  florista:   {nom:'Florista',          ico:'florista',   rareza:'rara',       costo:30,  dias:9,  miel:50,  comida:1.05},
+  minera:     {nom:'Minera',            ico:'minera',     rareza:'rara',       costo:36,  dias:10, miel:55,  comida:1.26},
+  escarcha:   {nom:'Escarcha',          ico:'escarcha',   rareza:'epica',      costo:48,  dias:11, miel:70,  comida:1.68},
+  ignea:      {nom:'Ígnea',             ico:'ignea',      rareza:'epica',      costo:56,  dias:11, miel:82,  comida:1.96},
+  dulce:      {nom:'Dulce',             ico:'dulce',      rareza:'epica',      costo:64,  dias:12, miel:88,  comida:2.24},
+  reina:      {nom:'Reina',             ico:'reina',      rareza:'legendaria', costo:90,  dias:13, miel:119, comida:3.15},
+  guardiana:  {nom:'Guardiana',         ico:'guardiana',  rareza:'legendaria', costo:115, dias:13, miel:152, comida:4.03, inmune:true},
+  cristal:    {nom:'Cristal',           ico:'cristal',    rareza:'legendaria', costo:145, dias:14, miel:182, comida:5.08, inmune:true},
+  cosmica:    {nom:'Cósmica',           ico:'cosmica',    rareza:'legendaria', costo:185, dias:14, miel:232, comida:6.48, inmune:true}
 };
 for(const k in ABEJAS){
   const a = ABEJAS[k];
   a.color = RAREZAS[a.rareza].color;
-  a.tope  = Math.round(a.miel * 2);          // el panal aguanta 2 días de miel
-  a.neto  = a.miel * a.dias / MIEL_POR_NECTAR - a.comida * a.dias;
-  a.desc  = `Vive ${a.dias} días · ${a.miel} miel por día · come ${a.comida} néctar por día`
-          + `<br>Deja ~${Math.round(a.neto)} néctar limpio por ${a.costo} BUZZ`
-          + (a.inmune ? `<br><i style="color:${a.color}">La plaga no la toca</i>` : '');
+  a.tope  = Math.round(a.miel * 2);                      // el panal aguanta 2 días
+  a.gasta = a.costo + a.comida * a.dias;
+  a.saca  = a.miel * a.dias / MIEL_POR_BUZZ;
+  a.neto  = a.saca - a.gasta;
+  if(a.inmune) a.rasgo = 'la plaga no la toca';
+  a.desc = `Vive ${a.dias} días · ${a.miel} miel por día · come ${red(a.comida)} BUZZ por día`
+         + `<br>Gastás ${red(a.gasta)} y recuperás ${red(a.saca)} BUZZ: <b style="color:var(--savia)">+${red(a.neto)}</b>`
+         + (a.rasgo ? `<br><i style="color:${a.color}">${a.rasgo}</i>` : '');
 }
 
 const INSUMOS = {
-  polen:{nom:'Polen', ico:'polen', costo:12, desc:'Un día entero de miel de golpe. Una vez por abeja.'},
-  humo: {nom:'Humo',  ico:'humo',  costo:18, desc:'Espanta la plaga. Con plaga, la abeja no produce.'}
+  polen:{nom:'Polen', ico:'polen', costo:3, desc:'Un día entero de miel de golpe. Una vez por abeja.'},
+  humo: {nom:'Humo',  ico:'humo',  costo:5, desc:'Espanta la plaga. Con plaga, la abeja no produce.'}
 };
 
 /* Los dos primeros panales vienen abiertos. Los otros se compran con
-   néctar Y sólo aceptan abejas de cierta rareza para arriba: eso es lo
+   BUZZ Y sólo aceptan abejas hasta cierta rareza: eso es lo
    que sostiene el modelo, porque obliga a reponer una abeja cara en
    BUZZ cada vez que se muere, no sólo a pagar el desbloqueo una vez. */
 const RAREZA_ORDEN = ['comun','rara','epica','legendaria'];
 
 /* Los panales van de a pares y cada par tiene un TECHO de rareza: en los
    dos primeros no entra una Cósmica por más que la tengas. Para usar las
-   abejas buenas hay que abrir los panales de arriba con néctar, así que
-   el néctar deja de ser sólo algo para vender. */
+   abejas buenas hay que abrir los panales de arriba, y eso devuelve
+   BUZZ a la reserva. */
 const PANALES = [
-  {costo:0,    tope:'rara'},
-  {costo:100,  tope:'rara'},
-  {costo:500,  tope:'epica'},
-  {costo:500,  tope:'epica'},
-  {costo:1500, tope:'legendaria'},
-  {costo:1500, tope:'legendaria'}
+  {costo:0,   tope:'rara'},
+  {costo:40,  tope:'rara'},
+  {costo:150, tope:'epica'},
+  {costo:150, tope:'epica'},
+  {costo:400, tope:'legendaria'},
+  {costo:400, tope:'legendaria'}
 ];
 const entra = (tipo, i) =>
   RAREZA_ORDEN.indexOf(ABEJAS[tipo].rareza) <= RAREZA_ORDEN.indexOf(PANALES[i].tope);
@@ -792,13 +797,14 @@ const POSICIONES = [
 ];
 
 const S = {
-  buzz:60, miel:0, nectar:25, quemado:0,
-  // la máquina lleva una cuenta aparte por cada moneda
-  casa:{ nectar:{ap:0, pa:0, gratis:0, usados:0, dia:0, ultimoGratis:0, apuestas:null},
-         buzz:  {ap:0, pa:0, gratis:0, usados:0, dia:0, ultimoGratis:0, apuestas:null} },
+  buzz:60,           // BUZZ retenido en el juego, todavía sin retirar
+  miel:0,
+  quemado:0,         // lo que se quemó al retirar
+  retirado:0,        // lo que ya pasó a la wallet
+  casa:{ buzz:{ap:0, pa:0, gratis:0, usados:0, dia:0, ultimoGratis:0, apuestas:null} },
   mochila:Object.fromEntries(Object.keys(ABEJAS).map(k => [k, k === 'obrera' ? 1 : 0])),
   insumos:{polen:2, humo:1},
-  abiertos:1,                 // los otros cinco se compran con néctar
+  abiertos:1,                 // los otros cinco se compran con BUZZ
   panales:Array(6).fill(null)
 };
 let elegido = null, pestana = 'abejas', filtro = 'todas';
@@ -815,7 +821,6 @@ function ponerVelocidad(v){
 }
 let ultimo = ahora();
 
-const red = n => Math.round(n*10)/10;
 const dias = seg => Math.max(0, seg/DIA);
 
 /* "6d 4h", "5h 20m", "12m" — según cuánto falte */
@@ -888,7 +893,7 @@ function pintarParcelas(){
       p.dataset.firma = firma;
       if(i >= S.abiertos){
         p.innerHTML = '<div class="candado"><div><div class="llave">🔒</div>' +
-          '<div class="precio">' + PANALES[i].costo + ' néctar</div>' +
+          '<div class="precio">' + PANALES[i].costo + ' BUZZ</div>' +
           '<div class="precio" style="color:'+RAREZAS[PANALES[i].tope].color+'; margin-top:2px">' +
           RAREZAS[PANALES[i].tope].nom + '</div></div></div>';
       }else if(!b){
@@ -943,7 +948,6 @@ function pintarParcelas(){
 function pintarNumeros(){
   vBuzz.textContent = red(S.buzz);
   vMiel.textContent = Math.floor(S.miel);
-  vNectar.textContent = red(S.nectar);
 }
 function refrescar(){ pintarNumeros(); pintarParcelas(); }
 
@@ -959,14 +963,14 @@ function tocar(i){
     const puede = i === S.abiertos;          // se abren en orden
     caja.innerHTML = '<div class="tira"></div><h2>Panal cerrado</h2>' +
       '<p class="sub">' +
-        (puede ? 'Abrilo con néctar. Acá entran abejas hasta <b style="color:'+rar.color+'">'
+        (puede ? 'Abrilo con BUZZ. Acá entran abejas hasta <b style="color:'+rar.color+'">'
                  + rar.nom + '</b>: es el único lugar donde vas a poder usarlas.'
                : 'Primero abrí el panal anterior.') + '</p>' +
-      '<div class="dato"><span>Cuesta</span><b>' + p.costo + ' néctar</b></div>' +
+      '<div class="dato"><span>Cuesta</span><b>' + p.costo + ' BUZZ</b></div>' +
       '<div class="dato"><span>Acepta hasta</span><b style="color:'+rar.color+'">' + rar.nom + '</b></div>' +
-      '<div class="dato"><span>Tenés</span><b>' + red(S.nectar) + ' néctar</b></div>' +
+      '<div class="dato"><span>Tenés</span><b>' + red(S.buzz) + ' BUZZ</b></div>' +
       '<button class="grande" onclick="abrirPanal()"' +
-        (puede && S.nectar >= p.costo ? '' : ' disabled') + '>Abrir por ' + p.costo + ' néctar</button>' +
+        (puede && S.buzz >= p.costo ? '' : ' disabled') + '>Abrir por ' + p.costo + ' BUZZ</button>' +
       '<button class="grande gris" onclick="cerrar(\'panal\')">Cerrar</button>';
     abrir('panal'); return;
   }
@@ -990,7 +994,8 @@ function tocar(i){
   const llena = b.miel >= a.tope - 0.5;
   const comidaQueda = Math.max(0, dias(b.comeHasta - t));
   const vidaQueda = Math.max(0, dias(b.muereEn - t));
-  const costo3 = red(a.comida * 3);
+  const puedeComer = Math.max(0, Math.min(3 * DIA, b.muereEn - Math.max(t, b.comeHasta)));
+  const costo3 = red(a.comida * puedeComer / DIA);
 
   caja.innerHTML = '<div class="tira"></div>' +
     '<h2>'+a.nom+' <span class="rar" style="color:'+a.color+'; border-color:'+a.color+'">'+RAREZAS[a.rareza].nom+'</span></h2>' +
@@ -1009,8 +1014,9 @@ function tocar(i){
       ? '<button class="grande" onclick="humo()"'+(S.insumos.humo>0?'':' disabled')+'>Usar humo ('+S.insumos.humo+')</button>'
       : '<button class="grande" onclick="cosechar()"'+(b.miel>=1?'':' disabled')+'>Cosechar '+Math.floor(b.miel)+' miel</button>') +
 
-    '<button class="grande gris" onclick="alimentar()"'+(S.nectar>=costo3?'':' disabled')+'>' +
-      'Alimentar 3 días · '+costo3+' néctar</button>' +
+    '<button class="grande gris" onclick="alimentar()"'+(S.buzz>=costo3 && puedeComer>0?'':' disabled')+'>' +
+      (puedeComer <= 0 ? 'Ya comió todo lo que le queda de vida'
+        : 'Alimentar ' + red(puedeComer/DIA) + ' día(s) · ' + costo3 + ' BUZZ') + '</button>' +
     (!b.plaga && !b.polen
       ? '<button class="grande gris" onclick="polen()"'+(S.insumos.polen>0?'':' disabled')+'>Usar polen · +'+a.miel+' miel ('+S.insumos.polen+')</button>'
       : '') +
@@ -1030,11 +1036,11 @@ function filaAbeja(t, nota, fn, txt){
 
 function abrirPanal(){
   const i = elegido, p = PANALES[i];
-  if(i !== S.abiertos || S.nectar < p.costo) return;
-  S.nectar -= p.costo;
+  if(i !== S.abiertos || S.buzz < p.costo) return;
+  S.buzz -= p.costo;
   S.abiertos++;
   cerrar('panal'); refrescar();
-  avisar('Panal ' + (i+1) + ' abierto · -' + p.costo + ' néctar');
+  avisar('Panal ' + (i+1) + ' abierto · -' + p.costo + ' BUZZ');
 }
 
 function poner(t){
@@ -1055,13 +1061,22 @@ function poner(t){
   cerrar('panal'); refrescar();
   avisar(a.nom + ' al panal · vive '+a.dias+' días');
 }
+/* Sólo se cobra la comida que la abeja va a poder usar: si le quedan
+   dos días de vida, no tiene sentido pagarle tres. Sin este tope el
+   jugador podía gastar de más sin darse cuenta. */
 function alimentar(){
   const b = S.panales[elegido]; if(!b) return;
-  const a = ABEJAS[b.tipo], costo = red(a.comida * 3);
-  if(S.nectar < costo) return;
-  S.nectar -= costo;
-  b.comeHasta = Math.max(ahora(), b.comeHasta) + 3 * DIA;
-  tocar(elegido); refrescar(); avisar('Comió por 3 días · -'+costo+' néctar');
+  const a = ABEJAS[b.tipo], t = ahora();
+  const desde = Math.max(t, b.comeHasta);
+  const puede = Math.max(0, Math.min(3 * DIA, b.muereEn - desde));
+  if(puede <= 0){ avisar('Ya tiene comida para toda su vida'); return; }
+  const dias = puede / DIA;
+  const costo = red(a.comida * dias);
+  if(S.buzz < costo){ avisar('Te falta BUZZ'); return; }
+  S.buzz -= costo;
+  b.comeHasta = desde + puede;
+  tocar(elegido); refrescar();
+  avisar('Comió por ' + red(dias) + ' día(s) · -' + costo + ' BUZZ');
 }
 function polen(){
   const b = S.panales[elegido];
@@ -1094,7 +1109,7 @@ function cosecharTodo(){
   S.panales.forEach((b, i) => total += recolectar(i));
   if(!total){ avisar('Todavía no hay miel para cosechar'); return; }
   refrescar();
-  avisar('+' + total + ' miel · cambiala por néctar en el mercado');
+  avisar('+' + total + ' miel · cambiala por BUZZ en el mercado');
 }
 
 // ---- tienda ----
@@ -1131,8 +1146,8 @@ function verTienda(cual){
   listaTienda.innerHTML = Object.entries(INSUMOS).map(([t,a]) =>
     '<div class="item"><img src="'+ICO[a.ico]+'" alt="">' +
     '<div class="info"><b>'+a.nom+'</b><small>'+a.desc+'</small></div>' +
-    '<div class="lado"><span class="n">'+a.costo+' néctar</span>' +
-    '<button class="acc" onclick="comprarInsumo(\''+t+'\')"'+(S.nectar>=a.costo?'':' disabled')+'>Comprar</button>' +
+    '<div class="lado"><span class="n">'+a.costo+' BUZZ</span>' +
+    '<button class="acc" onclick="comprarInsumo(\''+t+'\')"'+(S.buzz>=a.costo?'':' disabled')+'>Comprar</button>' +
     '</div></div>').join('');
 }
 function filtrar(r){ filtro = r; verTienda('abejas'); }
@@ -1140,16 +1155,15 @@ function filtrar(r){ filtro = r; verTienda('abejas'); }
 function comprarAbeja(t){
   const a = ABEJAS[t];
   if(S.buzz < a.costo) return;
-  S.buzz -= a.costo;
-  S.quemado += a.costo;          // el BUZZ no vuelve al juego: se quema
+  S.buzz -= a.costo;          // va a la reserva del juego, NO se quema
   S.mochila[t]++;
   refrescar(); verTienda('abejas');
-  avisar(a.nom + ' comprada · ' + a.costo + ' BUZZ quemados');
+  avisar(a.nom + ' comprada · -' + a.costo + ' BUZZ');
 }
 function comprarInsumo(t){
   const a = INSUMOS[t];
-  if(S.nectar < a.costo) return;
-  S.nectar -= a.costo; S.insumos[t]++;
+  if(S.buzz < a.costo) return;
+  S.buzz -= a.costo; S.insumos[t]++;
   refrescar(); verTienda('insumos'); avisar(a.nom + ' comprado');
 }
 
@@ -1168,34 +1182,46 @@ function verMochila(){
 
 // ---- mercado ----
 function verMercado(){
-  const nec = Math.floor(S.miel / MIEL_POR_NECTAR * 10) / 10;
-  mielDisp.textContent = Math.floor(S.miel) + ' miel → ' + red(nec) + ' néctar';
-  btnCambiar.disabled = S.miel < MIEL_POR_NECTAR;
-  nectarDisp.textContent = red(S.nectar) + ' néctar ≈ ' + red(S.nectar * PRECIO_NECTAR) + ' WLD';
-  btnVender.disabled = S.nectar < 1;
+  const enBuzz = Math.floor(S.miel / MIEL_POR_BUZZ * 100) / 100;
+  mielDisp.textContent = Math.floor(S.miel) + ' miel → ' + red(enBuzz) + ' BUZZ';
+  btnCambiar.disabled = S.miel < MIEL_POR_BUZZ;
+
+  buzzDisp.textContent = red(S.buzz) + ' BUZZ';
+  document.getElementById('txtQuema').textContent =
+    'Se quema ' + (QUEMA_RETIRO*100).toFixed(2).replace('.',',') + '% al retirar';
+  document.getElementById('btnRetirar').disabled = S.buzz < 1;
+  document.getElementById('retiradoDisp').textContent = red(S.retirado) + ' BUZZ';
   quemadoDisp.textContent = red(S.quemado) + ' BUZZ';
+
   document.getElementById('txtVel').textContent =
     VEL === 1 ? 'tiempo real: un día dura un día' : 'modo prueba: un día dura un minuto';
   document.getElementById('btnVel').textContent = VEL === 1 ? 'Acelerar' : 'Tiempo real';
 }
 function alternarVelocidad(){
-  ponerVelocidad(VEL === 1 ? 1440 : 1);   // 1440 = un día por minuto
+  ponerVelocidad(VEL === 1 ? 1440 : 1);
   verMercado();
 }
 function cambiarMiel(){
-  if(S.miel < MIEL_POR_NECTAR){ avisar('Te falta miel'); return; }
-  const g = Math.floor(S.miel / MIEL_POR_NECTAR * 10) / 10;
-  avisar('Cambiaste ' + Math.floor(S.miel) + ' miel por ' + red(g) + ' néctar');
-  S.miel -= g * MIEL_POR_NECTAR;
-  S.nectar += g;
+  if(S.miel < MIEL_POR_BUZZ){ avisar('Te falta miel'); return; }
+  const g = Math.floor(S.miel / MIEL_POR_BUZZ * 100) / 100;
+  avisar('Cambiaste ' + Math.floor(S.miel) + ' miel por ' + red(g) + ' BUZZ');
+  S.miel -= g * MIEL_POR_BUZZ;
+  S.buzz += g;
   refrescar(); verMercado();
 }
-function venderNectar(){
-  if(S.nectar < 1){ avisar('No tenés néctar'); return; }
-  const v = red(S.nectar);
-  S.buzz += v;                   // en el juego real: néctar → WLD en el pool → BUZZ
-  S.nectar = 0;
-  avisar('Vendiste ' + v + ' néctar · entraron ' + v + ' BUZZ');
+
+/* El juego retiene lo ganado hasta que el jugador lo pasa a su wallet.
+   Recién ahí se quema una parte: es el único momento en que sale BUZZ
+   de circulación. */
+function retirar(){
+  if(S.buzz < 1){ avisar('No tenés BUZZ para retirar'); return; }
+  const total = red(S.buzz);
+  const quema = Math.round(total * QUEMA_RETIRO * 100) / 100;
+  const neto  = red(total - quema);
+  S.buzz = 0;
+  S.quemado += quema;
+  S.retirado += neto;
+  avisar('Retiraste ' + neto + ' BUZZ · se quemaron ' + quema);
   refrescar(); verMercado();
 }
 
@@ -1385,17 +1411,13 @@ const porId = id => SIMB.find(s => s.id === id);
    regalo cuesta 4,2 tokens por wallet por día como mucho, juegue como
    juegue, y la máquina se queda entre 13% y 16%.
 
-   Cada moneda lleva su propia cuenta de giros: los de néctar no se
-   mezclan con los de BUZZ. */
+   Se juega con BUZZ, el mismo token de la granja. */
 const GRATIS_POR_DIA = 5;
 const ESPERA_GRATIS  = 1 * 3600;   // un rato entre uno y otro, en segundos del juego
 const FICHA_GRATIS   = 1;
 
-const MONEDAS = {
-  nectar: {nom:'NÉCTAR', ico:'nectar', col:'#3ddc84'},
-  buzz:   {nom:'BUZZ',   ico:'buzz',   col:'#ffc107'}
-};
-let moneda = 'nectar';
+const MONEDAS = { buzz:{nom:'BUZZ', ico:'buzz', col:'#ffc107'} };
+const moneda = 'buzz';
 const caja = () => S.casa[moneda];
 
 /* los cinco se reponen solos al cambiar el día */
@@ -1431,13 +1453,6 @@ function regalarGiro(){
   setTimeout(() => { if(!girando && caja().gratis > 0) girarSlot(); }, 1300);
 }
 
-function cambiarMoneda(m){
-  if(girando || pendiente > 0) return;
-  if(caja().gratis > 0){ avisar('Primero usá el giro gratis'); return; }
-  if(totalApostado() > 0) limpiarApuestas();
-  moneda = m;
-  pintarApuestas();
-}
 
 const FICHAS_AP = [1, 5, 25];
 let ficha = 1;
@@ -1468,10 +1483,6 @@ function visor(html, premio){
 }
 
 function pintarApuestas(){
-  document.getElementById('monedas').innerHTML = Object.entries(MONEDAS).map(([k,m]) =>
-    '<button class="monedaBtn'+(k===moneda?' on':'')+'" onclick="cambiarMoneda(\''+k+'\')">' +
-    '<img src="'+ICO[m.ico]+'" alt="">'+m.nom+'</button>').join('');
-
   document.getElementById('fichas').innerHTML = FICHAS_AP.map(f =>
     '<button class="fichaBtn'+(f===ficha?' on':'')+'" onclick="ponerFicha('+f+')">Ficha '+f+'</button>').join('');
 
@@ -1597,7 +1608,7 @@ async function girarSlot(){
    Acertás 6 de cada 10, no 5. Pero entonces la ganancia NO puede
    duplicarse: 0,60 × 2 da 1,20, y con eso la casa pierde plata cada vez
    que alguien sube (la máquina pasaría de devolver 83,3% a 207% si se
-   sube cinco veces seguidas, y el néctar dejaría de quemarse).
+   sube cinco veces seguidas).
    Con 60% de acierto y subida de ×1,65 la cuenta da 0,60 × 1,65 = 0,99:
    igual de neutra que el 50/50 a doble, pero ganás más seguido.
    Tope de cinco subidas al hilo. */
@@ -1622,7 +1633,7 @@ function abrirDoblar(){
   });
   document.getElementById('doblarTit').textContent =
     dobladas ? '¡Van ' + dobladas + ' seguidas!' : '¡Ganaste!';
-  document.getElementById('doblarMonto').textContent = red(pendiente) + ' néctar';
+  document.getElementById('doblarMonto').textContent = red(pendiente) + ' BUZZ';
   document.getElementById('doblarTxt').innerHTML = dobladas >= TOPE_DOBLE
     ? 'Llegaste al tope de ' + TOPE_DOBLE + ' subidas. Cobrá lo que juntaste.'
     : 'Elegí una. Acertás 6 de cada 10 y tu ganancia sube a ×' + SUBIDA + '.<br>Si errás, se va todo.';
@@ -1676,7 +1687,7 @@ async function elegirCarta(i){
   if(acerto){
     pendiente = red(pendiente * SUBIDA);
     dobladas++;
-    document.getElementById('doblarMonto').textContent = red(pendiente) + ' néctar';
+    document.getElementById('doblarMonto').textContent = red(pendiente) + ' BUZZ';
     document.getElementById('doblarTxt').innerHTML = '<span style="color:#3ddc84">¡Acertaste! Vas ' + red(pendiente) + '</span>';
     avisar('¡Acertaste! Vas ' + red(pendiente));
     setTimeout(abrirDoblar, 1400);
@@ -1717,7 +1728,7 @@ function verSuerte(){ verReglas(false); pintarApuestas(); }
    instala en un módulo aparte al final del body y queda en
    window._MiniKit; el saldo de BUZZ se lee de la cadena por eth_call.
    El resto del juego todavía corre en el navegador: las abejas, la
-   máquina y el néctar no tienen contrato desplegado.
+   máquina no tienen contrato desplegado.
    =================================================================== */
 const APP_ID   = 'app_3e9c2f5581972d797aedb86a4c34c3d4';
 const TOKEN    = '0xf9f44acea8d3f7f34ff9766cbbe5293f11b719fe';
