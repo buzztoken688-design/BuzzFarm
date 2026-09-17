@@ -149,7 +149,7 @@ body{
 .recursos{flex:1; display:flex; gap:6px; justify-content:flex-end; flex-wrap:wrap;}
 
 /* ---------- botonera ---------- */
-#tablones{
+#tablones{ gap:3px;
   position:absolute; left:0; right:0; bottom:0; z-index:10;
   display:flex; gap:5px; padding:8px 8px calc(8px + env(safe-area-inset-bottom));
   background:linear-gradient(0deg, rgba(14,10,4,.92) 60%, transparent);
@@ -522,7 +522,7 @@ body{
 </head>
 <body>
 
-<div id="cargando">Conectando tu wallet...</div>
+<div id="cargando" data-t="conectando">Conectando tu wallet...</div>
 
 <div id="juego" style="display:none">
 <div class="walletChip" id="walletChip" style="display:none"></div>
@@ -536,9 +536,11 @@ body{
 
 <div id="hud">
   <div class="fila-hud">
+    <button class="tarjeta" id="btnIdioma" onclick="cambiarIdioma()"
+            style="font-family:inherit; font-weight:900; font-size:12px; color:var(--miel); min-width:42px; justify-content:center">ES</button>
     <div class="tarjeta" id="perfilCard">
       <img data-ico="perfil" alt="">
-      <div><div class="val">Colmena</div><div class="nom" id="conteoPanales">0/6</div></div>
+      <div><div class="val" data-t="colmena">Colmena</div><div class="nom" id="conteoPanales">0/6</div></div>
     </div>
     <div class="recursos">
       <div class="tarjeta"><img data-ico="buzz" alt=""><div><div class="val" id="vBuzz">0</div><div class="nom">BUZZ</div></div></div>
@@ -549,24 +551,25 @@ body{
 </div>
 
 <button id="cosecharTodo" onclick="cosecharTodo()">
-  <img data-ico="miel" alt=""><span id="txtCosechar">Cosechar todo</span>
+  <img data-ico="miel" alt=""><span id="txtCosechar" data-t="cosecharTodo"></span>
 </button>
 
 <div id="tablones">
-  <button class="tablon on" onclick="irA(this,null)"><img data-ico="panal" alt="">Colmena</button>
-  <button class="tablon" onclick="irA(this,'tienda')"><img data-ico="tienda" alt="">Tienda</button>
-  <button class="tablon" onclick="irA(this,'mochila')"><img data-ico="mochila" alt="">Mochila</button>
-  <button class="tablon" onclick="irA(this,'mercado')"><img data-ico="mercado" alt="">Mercado</button>
-  <button class="tablon" onclick="irA(this,'suerte')"><img data-ico="trofeo" alt="">Suerte</button>
+  <button class="tablon on" onclick="irA(this,null)"><img data-ico="panal" alt=""><span data-t="navColmena">Colmena</span></button>
+  <button class="tablon" onclick="irA(this,'tienda')"><img data-ico="tienda" alt=""><span data-t="navTienda">Tienda</span></button>
+  <button class="tablon" onclick="irA(this,'mochila')"><img data-ico="mochila" alt=""><span data-t="navMochila">Mochila</span></button>
+  <button class="tablon" onclick="irA(this,'mercado')"><img data-ico="mercado" alt=""><span data-t="navMercado">Mercado</span></button>
+  <button class="tablon" onclick="irA(this,'ganar')"><img data-ico="buzz" alt=""><span data-t="navGanar">Ganar</span></button>
+  <button class="tablon" onclick="irA(this,'suerte')"><img data-ico="trofeo" alt=""><span data-t="navSuerte">Suerte</span></button>
 </div>
 
 <div class="hoja" id="hTienda" onclick="if(event.target===this) cerrar('tienda')">
   <div class="caja">
-    <div class="tira"></div><h2>Tienda</h2>
-    <p class="sub">Las abejas se pagan en BUZZ y ese BUZZ se quema. La abeja cara vive más días y produce más miel por día.</p>
+    <div class="tira"></div><h2 data-t="tienda">Tienda</h2>
+    <p class="sub" data-t="tiendaSub"></p>
     <div class="pestanas">
-      <button class="pestana on" id="pAbejas" onclick="verTienda('abejas')">Abejas</button>
-      <button class="pestana" id="pInsumos" onclick="verTienda('insumos')">Insumos</button>
+      <button class="pestana on" id="pAbejas" onclick="verTienda('abejas')" data-t="pAbejas">Abejas</button>
+      <button class="pestana" id="pInsumos" onclick="verTienda('insumos')" data-t="pInsumos">Insumos</button>
     </div>
     <div class="filtros" id="filtrosRareza"></div>
     <div id="listaTienda"></div>
@@ -574,66 +577,86 @@ body{
 </div>
 
 <div class="hoja" id="hMochila" onclick="if(event.target===this) cerrar('mochila')">
-  <div class="caja"><div class="tira"></div><h2>Mochila</h2>
-    <p class="sub">Lo que tenés guardado. Tocá un panal vacío para poner una abeja.</p>
+  <div class="caja"><div class="tira"></div><h2 data-t="mochila">Mochila</h2>
+    <p class="sub" data-t="mochilaSub"></p>
     <div id="listaMochila"></div></div>
 </div>
 
 <div class="hoja" id="hMercado" onclick="if(event.target===this) cerrar('mercado')">
-  <div class="caja"><div class="tira"></div><h2>Mercado</h2>
-    <p class="sub">La miel se cambia por BUZZ. El BUZZ queda guardado en el juego hasta que lo retires a tu wallet.</p>
+  <div class="caja"><div class="tira"></div><h2 data-t="mercado">Mercado</h2>
+    <p class="sub" data-t="mercadoSub"></p>
 
     <div class="item">
       <img data-ico="miel" src="" alt="">
-      <div class="info"><b>Cambiar miel por BUZZ</b><small>10 miel = 1 BUZZ</small></div>
+      <div class="info"><b data-t="cambiarMiel"></b><small data-t="tasa"></small></div>
       <div class="lado"><span class="n" id="mielDisp">0</span></div>
     </div>
-    <button class="grande" id="btnCambiar" onclick="cambiarMiel()">Cambiar toda la miel</button>
+    <button class="grande" id="btnCambiar" onclick="cambiarMiel()" data-t="cambiarTodo"></button>
 
     <div class="item" style="margin-top:14px">
       <img data-ico="buzz" src="" alt="">
-      <div class="info"><b>Retirar a tu wallet</b><small id="txtQuema">Se quema 0,50% al retirar</small></div>
+      <div class="info"><b data-t="retirarTit"></b><small id="txtQuema"></small></div>
       <div class="lado"><span class="n" id="buzzDisp">0</span></div>
     </div>
-    <button class="grande gris" id="btnRetirar" onclick="retirar()">Retirar todo</button>
+    <button class="grande gris" id="btnRetirar" onclick="retirar()" data-t="retirarTodo"></button>
 
-    <div class="dato" style="margin-top:12px"><span>Ya retirado</span><b id="retiradoDisp">0 BUZZ</b></div>
-    <div class="dato"><span>Quemado al retirar</span><b id="quemadoDisp">0 BUZZ</b></div>
+    <div class="dato" style="margin-top:12px"><span data-t="yaRetirado"></span><b id="retiradoDisp">0 BUZZ</b></div>
+    <div class="dato"><span data-t="quemadoAlRetirar"></span><b id="quemadoDisp">0 BUZZ</b></div>
     <p class="nota">Cómo gira: comprás la abeja con BUZZ, la abeja hace miel, la miel vuelve a ser BUZZ. Lo que gastás en abejas y comida no se quema — vuelve a la reserva del juego, que es de donde sale la producción.</p>
 
     <div class="dato" style="margin-top:14px">
-      <span>Prueba: valor del BUZZ<br><small style="color:var(--tenue)" id="txtPrecio"></small></span>
-      <button class="acc" onclick="simularPrecio()">Cambiar</button>
+      <span data-t="pruebaValor"></span><br><small style="color:var(--tenue)" id="txtPrecio"></small></span>
+      <button class="acc" onclick="simularPrecio()" data-t="cambiar"></button>
     </div>
 
     <div class="dato">
-      <span>Reloj del juego<br><small style="color:var(--tenue)" id="txtVel">tiempo real</small></span>
+      <span data-t="reloj"></span><br><small style="color:var(--tenue)" id="txtVel">tiempo real</small></span>
       <button class="acc" onclick="alternarVelocidad()" id="btnVel">Acelerar</button>
     </div>
     <button class="grande gris" onclick="cerrar('mercado')">Cerrar</button></div>
+</div>
+
+<div class="hoja" id="hGanar" onclick="if(event.target===this) cerrar('ganar')">
+  <div class="caja"><div class="tira"></div><h2 data-t="ganarTit"></h2>
+    <p class="sub" data-t="ganarSub"></p>
+
+    <div class="dato"><span data-t="guardado"></span><b id="gGuardado">0 BUZZ</b></div>
+    <div class="dato"><span data-t="tuParte"></span><b id="gParte">0%</b></div>
+    <div class="dato"><span data-t="ganadoSinCobrar"></span><b id="gGanado">0 BUZZ</b></div>
+    <div class="dato"><span data-t="pozoSemana"></span><b id="gPozo">0 BUZZ</b></div>
+
+    <input id="inputGuardar" type="number" inputmode="decimal" min="0" step="0.01"
+           data-tph="cuantoGuardar" style="width:100%; padding:12px 14px; border-radius:12px;
+           border:1.5px solid #3d2d12; background:rgba(0,0,0,.35); color:var(--crema);
+           font-family:inherit; font-size:14px; margin:10px 0 8px;">
+    <button class="grande" onclick="guardarBuzz()" data-t="guardarBtn"></button>
+    <button class="grande gris" id="btnCobrarG" onclick="cobrarGanado()" data-t="cobrarGanado"></button>
+    <button class="grande gris" id="btnSacarG" onclick="sacarGuardado()" data-t="sacarBtn"></button>
+    <p class="nota" data-t="notaGanar"></p>
+    <button class="grande gris" onclick="cerrar('ganar')" data-t="cerrar"></button></div>
 </div>
 
 <div class="hoja" id="hSuerte">
   <div class="caja" style="position:relative">
 
     <div class="cabezal">
-      <h2>LA MÁQUINA</h2>
+      <h2 data-t="maquina">LA MÁQUINA</h2>
       <span class="saldo"><img data-ico="buzz" alt=""><span id="saldoNec">0</span></span>
       <button class="ayuda" onclick="verReglas(true)">?</button>
     </div>
 
     <div class="marco"><div class="maquina" id="maquina"></div></div>
-    <div class="cartel">36 CASILLAS · TODAS PAGAN IGUAL · ¡SUERTE PURA!</div>
+    <div class="cartel" data-t="cartelMaquina"></div>
 
     <div class="fichasFila" id="fichas"></div>
     <div class="apostador" id="apostador"></div>
     <div class="gratisBadge" id="badgeGratis">★ GIRO GRATIS DE LA CASA ★</div>
-    <div class="estado" id="resuSlot">Tocá un símbolo para poner tu ficha.</div>
+    <div class="estado" id="resuSlot" data-t="tocaSimbolo"></div>
 
     <button class="girar" id="btnSlot" onclick="girarSlot()">Poné una apuesta</button>
     <div class="pie">
-      <button class="chico" id="btnLimpiar" onclick="limpiarApuestas()">Sacar apuestas</button>
-      <button class="chico" onclick="cerrar('suerte')">Volver a la colmena</button>
+      <button class="chico" id="btnLimpiar" onclick="limpiarApuestas()" data-t="sacarApuestas"></button>
+      <button class="chico" onclick="cerrar('suerte')" data-t="volverColmena"></button>
     </div>
 
     <div class="doblar" id="doblar">
@@ -648,9 +671,9 @@ body{
     </div>
 
     <div class="reglas" id="reglas">
-      <h3>Tabla de pagos</h3>
+      <h3 data-t="tablaPagos"></h3>
       <div id="tablaReglas"></div>
-      <button class="chico" onclick="verReglas(false)">Cerrar</button>
+      <button class="chico" onclick="verReglas(false)" data-t="cerrar"></button>
     </div>
 
   </div>
@@ -722,6 +745,415 @@ const ICO = {
    muere: hay que volver a comprar y se vuelve a quemar BUZZ.
    =================================================================== */
 
+
+/* ===================================================================
+   IDIOMAS
+   El texto vive acá y no suelto por el código. tr('clave') devuelve el
+   del idioma elegido, y {0} {1} se reemplazan por lo que se le pase.
+   Arranca con el del teléfono y se puede cambiar con el botón del HUD.
+   =================================================================== */
+const TEXTOS = {
+  es: {
+    navGanar:'Ganar',
+    ganarTit:'Ganar',
+    ganarSub:'Guardá BUZZ y cobrás parte de lo que deja la máquina. No hay tasa prometida: se reparte lo que entró esa semana, a proporción de lo que tenga cada uno guardado.',
+    guardado:'Tenés guardado',
+    tuParte:'Tu parte del pozo',
+    ganadoSinCobrar:'Ganado sin cobrar',
+    pozoSemana:'Juntó la máquina',
+    guardarBtn:'Guardar BUZZ',
+    sacarBtn:'Sacar lo guardado',
+    cobrarGanado:'Cobrar lo ganado',
+    cuantoGuardar:'¿Cuánto querés guardar?',
+    avGuardaste:'Guardaste {0} BUZZ',
+    avSacaste:'Sacaste {0} BUZZ',
+    avCobrado:'Cobraste {0} BUZZ del pozo',
+    sinGuardado:'No tenés nada guardado',
+    sinGanado:'Todavía no juntaste nada',
+    notaGanar:'El pozo sale de lo que se queda la máquina: mientras más se juegue, más se reparte. Si una semana no juega nadie, el pozo es chico. Por eso no se promete ningún porcentaje.',
+    abObrera:'Obrera',
+    abSelvatica:'Selvática',
+    abMielera:'Mielera',
+    abFlorista:'Florista',
+    abMinera:'Minera',
+    abEscarcha:'Escarcha',
+    abIgnea:'Ígnea',
+    abDulce:'Dulce',
+    abReina:'Reina',
+    abGuardiana:'Guardiana',
+    abCristal:'Cristal',
+    abCosmica:'Cósmica',
+    abDesc:'Vive {0} días · {1} miel por día · come {2} BUZZ por día',
+    abDesc2:'<br>Gastás {0} y recuperás {1} BUZZ: <b style="color:var(--savia)">+{2}</b>',
+    abInmune:'la plaga no la toca',
+    cartelMaquina:'36 CASILLAS · TODAS PAGAN IGUAL · ¡SUERTE PURA!',
+    polen:'Polen',
+    humo:'Humo',
+    polenDesc:'Un día entero de miel de golpe. Una vez por abeja.',
+    humoDesc:'Espanta la plaga. Con plaga, la abeja no produce.',
+    colmena:'Colmena', panales:'{0}/{1} panales',
+    navColmena:'Colmena', navTienda:'Tienda', navMochila:'Mochila',
+    navMercado:'Mercado', navSuerte:'Suerte',
+    cosecharTodo:'Cosechar todo', cosecharMas:'Cosechar todo +{0}',
+
+    tienda:'Tienda',
+    tiendaSub:'Las abejas se pagan con BUZZ. La abeja cara vive más días y produce más por día.',
+    pAbejas:'Abejas', pInsumos:'Insumos', comprar:'Comprar', cerrar:'Cerrar',
+    todas:'Todas', comun:'Común', rara:'Rara', epica:'Épica', legendaria:'Legendaria',
+    nadaRareza:'Nada en esta rareza.',
+
+    mochila:'Mochila',
+    mochilaSub:'Lo que tenés guardado. Tocá un panal vacío para poner una abeja.',
+    mochilaVacia:'Tu mochila está vacía.<br>Pasá por la tienda.',
+    tenes:'tenés {0}', poner:'Poner',
+
+    mercado:'Mercado',
+    mercadoSub:'La miel se cambia por BUZZ. El BUZZ queda guardado en el juego hasta que lo retires a tu wallet.',
+    cambiarMiel:'Cambiar miel por BUZZ', tasa:'10 miel = 1 BUZZ',
+    cambiarTodo:'Cambiar toda la miel',
+    retirarTit:'Retirar a tu wallet', seQuema:'Se quema {0}% al retirar',
+    retirarTodo:'Retirar todo', yaRetirado:'Ya retirado', quemadoAlRetirar:'Quemado al retirar',
+    comoGira:'Cómo gira: comprás la abeja con BUZZ, la abeja hace miel, la miel vuelve a ser BUZZ. Lo que gastás en abejas y comida no se quema — vuelve a la reserva del juego, que es de donde sale la producción.',
+    pruebaValor:'Prueba: valor del BUZZ', reloj:'Reloj del juego',
+    cambiar:'Cambiar', acelerar:'Acelerar', tiempoReal:'Tiempo real',
+    relojReal:'tiempo real: un día dura un día', relojPrueba:'modo prueba: un día dura un minuto',
+    precioNormal:'normal', precioSubio:'el BUZZ subió: todo cuesta {0}× en BUZZ',
+    precioBajo:'el BUZZ bajó: todo cuesta {0}× en BUZZ',
+
+    panalVacio:'Panal vacío',
+    panalVacioSub:'Poné una abeja. Acordate de darle de comer o deja de producir.',
+    panalAcepta:' Acá entran abejas hasta <b style="color:{0}">{1}</b>.',
+    sinAbejas:'No te queda ninguna abeja.<br>Comprá en la tienda.',
+    panalCerrado:'Panal cerrado',
+    panalAbrilo:'Abrilo con BUZZ. Acá entran abejas hasta <b style="color:{0}">{1}</b>: es el único lugar donde vas a poder usarlas.',
+    panalAnterior:'Primero abrí el panal anterior.',
+    cuesta:'Cuesta', aceptaHasta:'Acepta hasta', tenesTotal:'Tenés',
+    abrirPor:'Abrir por {0} BUZZ',
+
+    conPlaga:'Tiene plaga: no produce hasta que uses humo.',
+    conHambre:'Se quedó <b style="color:var(--alarma)">sin comida</b>: no produce hasta que la alimentes.',
+    panalLleno:'El panal está lleno, cosechá para que siga produciendo.',
+    produciendo:'Produciendo {0} miel por día.',
+    leQueda:'<br>Le queda <b>{0} de vida</b> · comida para {1}',
+    mielEnPanal:'{0} miel en el panal', topeMiel:'Tope {0}. Cuando se llena, la abeja para.',
+    usarHumo:'Usar humo ({0})', cosecharMiel:'Cosechar {0} miel',
+    alimentarDias:'Alimentar {0} día(s) · {1} BUZZ', yaComio:'Ya comió todo lo que le queda de vida',
+    usarPolen:'Usar polen · +{0} miel ({1})',
+
+    etPlaga:'plaga', etHambre:'sin comida', etLleno:'panal lleno',
+
+    maquina:'La máquina',
+    maquinaSub:'Jugá con BUZZ. Apostá a los símbolos que quieras: la luz da vueltas y donde frena, paga.',
+    ficha:'Ficha {0}', girar:'GIRAR · {0} BUZZ', poneApuesta:'Poné una apuesta',
+    girarGratis:'★ GIRAR GRATIS ★', sacarApuestas:'Sacar apuestas',
+    volverColmena:'Volver a la colmena', tocaSimbolo:'Tocá un símbolo para poner tu ficha.',
+    girando:'Girando...', tablaPagos:'Tabla de pagos',
+    consuelo:'★ GIRO DE CONSUELO · TE QUEDAN {0} HOY ★',
+    ganaste:'¡Ganaste!', vanSeguidas:'¡Van {0} seguidas!',
+    subiTexto:'Elegí una. Acertás 6 de cada 10 y tu ganancia sube a ×{0}.<br>Si errás, se va todo.',
+    topeSubidas:'Llegaste al tope de {0} subidas. Cobrá lo que juntaste.',
+    cobrarMonto:'Cobrar {0}', aVerDonde:'A ver dónde frena...',
+    acertaste:'¡Acertaste! Vas {0}', eraLaOtra:'Era la otra. Se fue todo.',
+    seguirJugando:'Seguir jugando',
+
+    abeja:'Abeja', panal:'Panal', abejaRara:'Abeja rara',
+    abejaLeg:'Abeja legendaria', abejaMis:'Abeja mística', abejaTru:'Abeja del trueno',
+    elSiete:'El siete', logoBuzz:'Logo BUZZ', bar:'BAR',
+
+    avComprada:'{0} comprada · -{1} BUZZ', avPanalAbierto:'Panal {0} abierto · -{1} BUZZ',
+    avComio:'Comió por {0} día(s) · -{1} BUZZ', avFaltaBuzz:'Te falta BUZZ',
+    avFaltaMiel:'Te falta miel', avSinSaldo:'No tenés BUZZ para retirar',
+    avCambiaste:'Cambiaste {0} miel por {1} BUZZ',
+    avRetiraste:'Retiraste {0} BUZZ · se quemaron {1}',
+    avPlaga:'¡Plaga en un panal! Usá humo', avHumo:'Plaga espantada',
+    avAlPanal:'{0} al panal · vive {1} días', avMurio:'{0} murió de vieja',
+    avMurioMiel:'{0} murió de vieja · recogiste {1} miel',
+    avNadaCosechar:'Todavía no hay miel para cosechar',
+    avCosechado:'+{0} miel · cambiala por BUZZ en el mercado',
+    avRareza:'En este panal sólo entran hasta {0}',
+    avPrimero:'Primero poné una apuesta', avDevuelto:'Te devolví {0} BUZZ',
+    avPerdiste:'Perdiste, va uno gratis de la casa',
+    avSalio:'Salió {0} · +{1} BUZZ', avSalioNada:'Salió {0} y no le habías puesto nada',
+    avCobraste:'Cobraste {0} BUZZ', avPerdioSubida:'Perdiste la subida',
+    avGiroGratis:'El giro gratis va con la misma apuesta',
+    avNoSacar:'No podés sacar la apuesta del giro gratis',
+    conectando:'Conectando tu wallet...'
+  },
+
+  en: {
+    navGanar:'Earn',
+    ganarTit:'Earn',
+    ganarSub:'Lock BUZZ and take a share of what the machine keeps. There is no promised rate: whatever came in that week is split in proportion to what each player has locked.',
+    guardado:'You have locked',
+    tuParte:'Your share of the pot',
+    ganadoSinCobrar:'Earned, not claimed',
+    pozoSemana:'The machine collected',
+    guardarBtn:'Lock BUZZ',
+    sacarBtn:'Unlock',
+    cobrarGanado:'Claim earnings',
+    cuantoGuardar:'How much do you want to lock?',
+    avGuardaste:'Locked {0} BUZZ',
+    avSacaste:'Unlocked {0} BUZZ',
+    avCobrado:'Claimed {0} BUZZ from the pot',
+    sinGuardado:'You have nothing locked',
+    sinGanado:'Nothing earned yet',
+    notaGanar:'The pot comes from what the machine keeps: the more people play, the more there is to share. If nobody plays one week, the pot is small. That is why no percentage is promised.',
+    abObrera:'Worker',
+    abSelvatica:'Forest',
+    abMielera:'Honeyer',
+    abFlorista:'Florist',
+    abMinera:'Miner',
+    abEscarcha:'Frost',
+    abIgnea:'Ember',
+    abDulce:'Sweet',
+    abReina:'Queen',
+    abGuardiana:'Guardian',
+    abCristal:'Crystal',
+    abCosmica:'Cosmic',
+    abDesc:'Lives {0} days · {1} honey per day · eats {2} BUZZ per day',
+    abDesc2:'<br>You spend {0} and get back {1} BUZZ: <b style="color:var(--savia)">+{2}</b>',
+    abInmune:'pests do not touch her',
+    cartelMaquina:'36 SQUARES · ALL PAY THE SAME · PURE LUCK!',
+    polen:'Pollen',
+    humo:'Smoke',
+    polenDesc:'A whole day of honey at once. Once per bee.',
+    humoDesc:'Drives the pest off. With a pest, the bee stops producing.',
+    colmena:'Hive', panales:'{0}/{1} cells',
+    navColmena:'Hive', navTienda:'Shop', navMochila:'Bag',
+    navMercado:'Market', navSuerte:'Luck',
+    cosecharTodo:'Harvest all', cosecharMas:'Harvest all +{0}',
+
+    tienda:'Shop',
+    tiendaSub:'Bees are paid with BUZZ. Pricier bees live longer and make more per day.',
+    pAbejas:'Bees', pInsumos:'Supplies', comprar:'Buy', cerrar:'Close',
+    todas:'All', comun:'Common', rara:'Rare', epica:'Epic', legendaria:'Legendary',
+    nadaRareza:'Nothing in this tier.',
+
+    mochila:'Bag',
+    mochilaSub:'What you have stored. Tap an empty cell to place a bee.',
+    mochilaVacia:'Your bag is empty.<br>Head to the shop.',
+    tenes:'you have {0}', poner:'Place',
+
+    mercado:'Market',
+    mercadoSub:'Honey is traded for BUZZ. Your BUZZ stays in the game until you withdraw it to your wallet.',
+    cambiarMiel:'Trade honey for BUZZ', tasa:'10 honey = 1 BUZZ',
+    cambiarTodo:'Trade all honey',
+    retirarTit:'Withdraw to your wallet', seQuema:'{0}% is burned on withdrawal',
+    retirarTodo:'Withdraw all', yaRetirado:'Already withdrawn', quemadoAlRetirar:'Burned on withdrawal',
+    comoGira:'How it works: you buy the bee with BUZZ, the bee makes honey, the honey becomes BUZZ again. What you spend on bees and food is not burned — it returns to the game reserve, which is where production comes from.',
+    pruebaValor:'Test: BUZZ value', reloj:'Game clock',
+    cambiar:'Change', acelerar:'Speed up', tiempoReal:'Real time',
+    relojReal:'real time: a day lasts a day', relojPrueba:'test mode: a day lasts a minute',
+    precioNormal:'normal', precioSubio:'BUZZ went up: everything costs {0}× in BUZZ',
+    precioBajo:'BUZZ went down: everything costs {0}× in BUZZ',
+
+    panalVacio:'Empty cell',
+    panalVacioSub:'Place a bee. Remember to feed her or she stops producing.',
+    panalAcepta:' This cell takes bees up to <b style="color:{0}">{1}</b>.',
+    sinAbejas:'You have no bees left.<br>Buy some in the shop.',
+    panalCerrado:'Locked cell',
+    panalAbrilo:'Unlock it with BUZZ. This cell takes bees up to <b style="color:{0}">{1}</b>: it is the only place you can use them.',
+    panalAnterior:'Unlock the previous cell first.',
+    cuesta:'Costs', aceptaHasta:'Takes up to', tenesTotal:'You have',
+    abrirPor:'Unlock for {0} BUZZ',
+
+    conPlaga:'It has a pest: no production until you use smoke.',
+    conHambre:'She ran <b style="color:var(--alarma)">out of food</b>: no production until you feed her.',
+    panalLleno:'The cell is full, harvest so she keeps producing.',
+    produciendo:'Producing {0} honey per day.',
+    leQueda:'<br><b>{0} of life</b> left · food for {1}',
+    mielEnPanal:'{0} honey in the cell', topeMiel:'Cap {0}. When it fills up, the bee stops.',
+    usarHumo:'Use smoke ({0})', cosecharMiel:'Harvest {0} honey',
+    alimentarDias:'Feed {0} day(s) · {1} BUZZ', yaComio:'She already has food for the rest of her life',
+    usarPolen:'Use pollen · +{0} honey ({1})',
+
+    etPlaga:'pest', etHambre:'no food', etLleno:'cell full',
+
+    maquina:'The machine',
+    maquinaSub:'Play with BUZZ. Bet on any symbols you like: the light spins and pays where it stops.',
+    ficha:'Chip {0}', girar:'SPIN · {0} BUZZ', poneApuesta:'Place a bet',
+    girarGratis:'★ FREE SPIN ★', sacarApuestas:'Clear bets',
+    volverColmena:'Back to the hive', tocaSimbolo:'Tap a symbol to place your chip.',
+    girando:'Spinning...', tablaPagos:'Paytable',
+    consuelo:'★ CONSOLATION SPIN · {0} LEFT TODAY ★',
+    ganaste:'You won!', vanSeguidas:'{0} in a row!',
+    subiTexto:'Pick one. You hit 6 out of 10 and your win rises to ×{0}.<br>Miss and you lose it all.',
+    topeSubidas:'You reached the cap of {0} raises. Cash out what you built.',
+    cobrarMonto:'Cash out {0}', aVerDonde:'Let us see where it stops...',
+    acertaste:'You got it! Now {0}', eraLaOtra:'It was the other one. All gone.',
+    seguirJugando:'Keep playing',
+
+    abeja:'Bee', panal:'Honeycomb', abejaRara:'Rare bee',
+    abejaLeg:'Legendary bee', abejaMis:'Mystic bee', abejaTru:'Thunder bee',
+    elSiete:'The seven', logoBuzz:'BUZZ logo', bar:'BAR',
+
+    avComprada:'{0} bought · -{1} BUZZ', avPanalAbierto:'Cell {0} unlocked · -{1} BUZZ',
+    avComio:'Fed for {0} day(s) · -{1} BUZZ', avFaltaBuzz:'Not enough BUZZ',
+    avFaltaMiel:'Not enough honey', avSinSaldo:'No BUZZ to withdraw',
+    avCambiaste:'Traded {0} honey for {1} BUZZ',
+    avRetiraste:'Withdrew {0} BUZZ · {1} burned',
+    avPlaga:'Pest in a cell! Use smoke', avHumo:'Pest driven off',
+    avAlPanal:'{0} placed · lives {1} days', avMurio:'{0} died of old age',
+    avMurioMiel:'{0} died of old age · you collected {1} honey',
+    avNadaCosechar:'No honey to harvest yet',
+    avCosechado:'+{0} honey · trade it for BUZZ in the market',
+    avRareza:'This cell only takes up to {0}',
+    avPrimero:'Place a bet first', avDevuelto:'Returned {0} BUZZ',
+    avPerdiste:'You lost, here is one on the house',
+    avSalio:'{0} came up · +{1} BUZZ', avSalioNada:'{0} came up and you had nothing on it',
+    avCobraste:'Cashed out {0} BUZZ', avPerdioSubida:'You lost the raise',
+    avGiroGratis:'The free spin uses the same bet',
+    avNoSacar:'You cannot clear the free spin bet',
+    conectando:'Connecting your wallet...'
+  },
+
+  pt: {
+    navGanar:'Ganhar',
+    ganarTit:'Ganhar',
+    ganarSub:'Guarde BUZZ e receba parte do que a máquina fica. Não há taxa prometida: divide-se o que entrou naquela semana, proporcional ao que cada um tem guardado.',
+    guardado:'Você tem guardado',
+    tuParte:'Sua parte do bolo',
+    ganadoSinCobrar:'Ganho sem resgatar',
+    pozoSemana:'A máquina juntou',
+    guardarBtn:'Guardar BUZZ',
+    sacarBtn:'Tirar o guardado',
+    cobrarGanado:'Resgatar o ganho',
+    cuantoGuardar:'Quanto você quer guardar?',
+    avGuardaste:'Guardou {0} BUZZ',
+    avSacaste:'Tirou {0} BUZZ',
+    avCobrado:'Resgatou {0} BUZZ do bolo',
+    sinGuardado:'Você não tem nada guardado',
+    sinGanado:'Ainda não juntou nada',
+    notaGanar:'O bolo vem do que a máquina fica: quanto mais se joga, mais se divide. Se numa semana ninguém jogar, o bolo é pequeno. Por isso não se promete nenhuma porcentagem.',
+    abObrera:'Operária',
+    abSelvatica:'Selvática',
+    abMielera:'Meleira',
+    abFlorista:'Florista',
+    abMinera:'Mineira',
+    abEscarcha:'Geada',
+    abIgnea:'Ígnea',
+    abDulce:'Doce',
+    abReina:'Rainha',
+    abGuardiana:'Guardiã',
+    abCristal:'Cristal',
+    abCosmica:'Cósmica',
+    abDesc:'Vive {0} dias · {1} mel por dia · come {2} BUZZ por dia',
+    abDesc2:'<br>Você gasta {0} e recupera {1} BUZZ: <b style="color:var(--savia)">+{2}</b>',
+    abInmune:'a praga não a pega',
+    cartelMaquina:'36 CASAS · TODAS PAGAM IGUAL · PURA SORTE!',
+    polen:'Pólen',
+    humo:'Fumaça',
+    polenDesc:'Um dia inteiro de mel de uma vez. Uma vez por abelha.',
+    humoDesc:'Espanta a praga. Com praga, a abelha não produz.',
+    colmena:'Colmeia', panales:'{0}/{1} favos',
+    navColmena:'Colmeia', navTienda:'Loja', navMochila:'Mochila',
+    navMercado:'Mercado', navSuerte:'Sorte',
+    cosecharTodo:'Colher tudo', cosecharMas:'Colher tudo +{0}',
+
+    tienda:'Loja',
+    tiendaSub:'As abelhas se pagam com BUZZ. A abelha mais cara vive mais dias e produz mais por dia.',
+    pAbejas:'Abelhas', pInsumos:'Insumos', comprar:'Comprar', cerrar:'Fechar',
+    todas:'Todas', comun:'Comum', rara:'Rara', epica:'Épica', legendaria:'Lendária',
+    nadaRareza:'Nada nesta raridade.',
+
+    mochila:'Mochila',
+    mochilaSub:'O que você guardou. Toque num favo vazio para colocar uma abelha.',
+    mochilaVacia:'Sua mochila está vazia.<br>Passe na loja.',
+    tenes:'você tem {0}', poner:'Colocar',
+
+    mercado:'Mercado',
+    mercadoSub:'O mel se troca por BUZZ. O BUZZ fica guardado no jogo até você sacar para a sua carteira.',
+    cambiarMiel:'Trocar mel por BUZZ', tasa:'10 mel = 1 BUZZ',
+    cambiarTodo:'Trocar todo o mel',
+    retirarTit:'Sacar para a carteira', seQuema:'Queima {0}% ao sacar',
+    retirarTodo:'Sacar tudo', yaRetirado:'Já sacado', quemadoAlRetirar:'Queimado ao sacar',
+    comoGira:'Como funciona: você compra a abelha com BUZZ, a abelha faz mel, o mel vira BUZZ de novo. O que você gasta em abelhas e comida não é queimado — volta para a reserva do jogo, que é de onde sai a produção.',
+    pruebaValor:'Teste: valor do BUZZ', reloj:'Relógio do jogo',
+    cambiar:'Mudar', acelerar:'Acelerar', tiempoReal:'Tempo real',
+    relojReal:'tempo real: um dia dura um dia', relojPrueba:'modo teste: um dia dura um minuto',
+    precioNormal:'normal', precioSubio:'o BUZZ subiu: tudo custa {0}× em BUZZ',
+    precioBajo:'o BUZZ caiu: tudo custa {0}× em BUZZ',
+
+    panalVacio:'Favo vazio',
+    panalVacioSub:'Coloque uma abelha. Lembre de alimentá-la ou ela para de produzir.',
+    panalAcepta:' Aqui entram abelhas até <b style="color:{0}">{1}</b>.',
+    sinAbejas:'Você não tem mais abelhas.<br>Compre na loja.',
+    panalCerrado:'Favo trancado',
+    panalAbrilo:'Abra com BUZZ. Aqui entram abelhas até <b style="color:{0}">{1}</b>: é o único lugar onde você poderá usá-las.',
+    panalAnterior:'Abra o favo anterior primeiro.',
+    cuesta:'Custa', aceptaHasta:'Aceita até', tenesTotal:'Você tem',
+    abrirPor:'Abrir por {0} BUZZ',
+
+    conPlaga:'Está com praga: não produz até você usar fumaça.',
+    conHambre:'Ficou <b style="color:var(--alarma)">sem comida</b>: não produz até você alimentá-la.',
+    panalLleno:'O favo está cheio, colha para ela continuar produzindo.',
+    produciendo:'Produzindo {0} mel por dia.',
+    leQueda:'<br>Resta <b>{0} de vida</b> · comida para {1}',
+    mielEnPanal:'{0} mel no favo', topeMiel:'Limite {0}. Quando enche, a abelha para.',
+    usarHumo:'Usar fumaça ({0})', cosecharMiel:'Colher {0} mel',
+    alimentarDias:'Alimentar {0} dia(s) · {1} BUZZ', yaComio:'Já tem comida para toda a vida dela',
+    usarPolen:'Usar pólen · +{0} mel ({1})',
+
+    etPlaga:'praga', etHambre:'sem comida', etLleno:'favo cheio',
+
+    maquina:'A máquina',
+    maquinaSub:'Jogue com BUZZ. Aposte nos símbolos que quiser: a luz gira e paga onde parar.',
+    ficha:'Ficha {0}', girar:'GIRAR · {0} BUZZ', poneApuesta:'Faça uma aposta',
+    girarGratis:'★ GIRO GRÁTIS ★', sacarApuestas:'Tirar apostas',
+    volverColmena:'Voltar para a colmeia', tocaSimbolo:'Toque num símbolo para pôr sua ficha.',
+    girando:'Girando...', tablaPagos:'Tabela de pagamentos',
+    consuelo:'★ GIRO DE CONSOLO · RESTAM {0} HOJE ★',
+    ganaste:'Você ganhou!', vanSeguidas:'{0} seguidas!',
+    subiTexto:'Escolha uma. Você acerta 6 de cada 10 e o ganho sobe para ×{0}.<br>Se errar, perde tudo.',
+    topeSubidas:'Você chegou ao limite de {0} subidas. Resgate o que juntou.',
+    cobrarMonto:'Resgatar {0}', aVerDonde:'Vamos ver onde para...',
+    acertaste:'Acertou! Agora {0}', eraLaOtra:'Era a outra. Foi tudo.',
+    seguirJugando:'Continuar jogando',
+
+    abeja:'Abelha', panal:'Favo', abejaRara:'Abelha rara',
+    abejaLeg:'Abelha lendária', abejaMis:'Abelha mística', abejaTru:'Abelha do trovão',
+    elSiete:'O sete', logoBuzz:'Logo BUZZ', bar:'BAR',
+
+    avComprada:'{0} comprada · -{1} BUZZ', avPanalAbierto:'Favo {0} aberto · -{1} BUZZ',
+    avComio:'Comeu por {0} dia(s) · -{1} BUZZ', avFaltaBuzz:'Falta BUZZ',
+    avFaltaMiel:'Falta mel', avSinSaldo:'Sem BUZZ para sacar',
+    avCambiaste:'Trocou {0} mel por {1} BUZZ',
+    avRetiraste:'Sacou {0} BUZZ · queimaram {1}',
+    avPlaga:'Praga num favo! Use fumaça', avHumo:'Praga espantada',
+    avAlPanal:'{0} no favo · vive {1} dias', avMurio:'{0} morreu de velha',
+    avMurioMiel:'{0} morreu de velha · você recolheu {1} mel',
+    avNadaCosechar:'Ainda não há mel para colher',
+    avCosechado:'+{0} mel · troque por BUZZ no mercado',
+    avRareza:'Neste favo só entram até {0}',
+    avPrimero:'Faça uma aposta primeiro', avDevuelto:'Devolvi {0} BUZZ',
+    avPerdiste:'Você perdeu, vai um grátis por conta da casa',
+    avSalio:'Saiu {0} · +{1} BUZZ', avSalioNada:'Saiu {0} e você não tinha nada nele',
+    avCobraste:'Resgatou {0} BUZZ', avPerdioSubida:'Perdeu a subida',
+    avGiroGratis:'O giro grátis usa a mesma aposta',
+    avNoSacar:'Não dá para tirar a aposta do giro grátis',
+    conectando:'Conectando sua carteira...'
+  }
+};
+
+let idioma = (function(){
+  const n = (navigator.language || 'es').slice(0,2).toLowerCase();
+  return TEXTOS[n] ? n : 'es';
+})();
+
+function tr(clave){
+  let s = (TEXTOS[idioma] && TEXTOS[idioma][clave]) || TEXTOS.es[clave] || clave;
+  for(let i = 1; i < arguments.length; i++) s = s.split('{'+(i-1)+'}').join(arguments[i]);
+  return s;
+}
+function cambiarIdioma(){
+  const orden = ['es','en','pt'];
+  idioma = orden[(orden.indexOf(idioma) + 1) % orden.length];
+  document.documentElement.lang = idioma;
+  pintarTextos();
+  refrescar();
+  if(typeof pintarApuestas === 'function') pintarApuestas();
+}
+
 const red = n => Math.round(n*10)/10;
 const red2 = n => Math.round(n*100)/100;
 
@@ -746,11 +1178,15 @@ const MIEL_POR_BUZZ = 10;        // 10 miel = 1 BUZZ
 const QUEMA_RETIRO  = 0.005;    // 0,50% se quema al pasar el BUZZ a la wallet
 
 const RAREZAS = {
-  comun:      {nom:'Común',      color:'#a8b49a'},
-  rara:       {nom:'Rara',       color:'#4fc3f7'},
-  epica:      {nom:'Épica',      color:'#b47cff'},
-  legendaria: {nom:'Legendaria', color:'#ffb300'}
+  comun:      {clave:'comun',      color:'#a8b49a'},
+  rara:       {clave:'rara',       color:'#4fc3f7'},
+  epica:      {clave:'epica',      color:'#b47cff'},
+  legendaria: {clave:'legendaria', color:'#ffb300'}
 };
+/* El nombre de cada rareza sale del idioma elegido, sin tocar los datos. */
+for(const k in RAREZAS){
+  Object.defineProperty(RAREZAS[k], 'nom', { get(){ return tr(this.clave); } });
+}
 
 /* Un solo token. La abeja se paga en BUZZ, come BUZZ y produce miel;
    la miel se cambia por BUZZ a 10:1. El BUZZ de la compra y de la comida
@@ -759,36 +1195,48 @@ const RAREZAS = {
    El margen sube con la rareza: 12% las comunes, 14% raras, 16% épicas,
    18% legendarias, siempre sobre lo que el jugador gasta. */
 const ABEJAS = {
-  obrera:     {nom:'Obrera',            ico:'obrera',     rareza:'comun',      costo:10,  dias:7,  miel:20,  comida:0.35},
-  selvatica:  {nom:'Selvática',         ico:'selvatica',  rareza:'comun',      costo:16,  dias:8,  miel:29,  comida:0.56},
-  mielera:    {nom:'Mielera',           ico:'mielera',    rareza:'rara',       costo:24,  dias:9,  miel:40,  comida:0.84},
-  florista:   {nom:'Florista',          ico:'florista',   rareza:'rara',       costo:30,  dias:9,  miel:50,  comida:1.05},
-  minera:     {nom:'Minera',            ico:'minera',     rareza:'rara',       costo:36,  dias:10, miel:55,  comida:1.26},
-  escarcha:   {nom:'Escarcha',          ico:'escarcha',   rareza:'epica',      costo:48,  dias:11, miel:70,  comida:1.68},
-  ignea:      {nom:'Ígnea',             ico:'ignea',      rareza:'epica',      costo:56,  dias:11, miel:82,  comida:1.96},
-  dulce:      {nom:'Dulce',             ico:'dulce',      rareza:'epica',      costo:64,  dias:12, miel:88,  comida:2.24},
-  reina:      {nom:'Reina',             ico:'reina',      rareza:'legendaria', costo:90,  dias:13, miel:119, comida:3.15},
-  guardiana:  {nom:'Guardiana',         ico:'guardiana',  rareza:'legendaria', costo:115, dias:13, miel:152, comida:4.03, inmune:true},
-  cristal:    {nom:'Cristal',           ico:'cristal',    rareza:'legendaria', costo:145, dias:14, miel:182, comida:5.08, inmune:true},
-  cosmica:    {nom:'Cósmica',           ico:'cosmica',    rareza:'legendaria', costo:185, dias:14, miel:232, comida:6.48, inmune:true}
+  obrera:     {ico:'obrera',     rareza:'comun',      costo:10,  dias:7,  miel:20,  comida:0.35},
+  selvatica:  {ico:'selvatica',  rareza:'comun',      costo:16,  dias:8,  miel:29,  comida:0.56},
+  mielera:    {ico:'mielera',    rareza:'rara',       costo:24,  dias:9,  miel:40,  comida:0.84},
+  florista:   {ico:'florista',   rareza:'rara',       costo:30,  dias:9,  miel:50,  comida:1.05},
+  minera:     {ico:'minera',     rareza:'rara',       costo:36,  dias:10, miel:55,  comida:1.26},
+  escarcha:   {ico:'escarcha',   rareza:'epica',      costo:48,  dias:11, miel:70,  comida:1.68},
+  ignea:      {ico:'ignea',      rareza:'epica',      costo:56,  dias:11, miel:82,  comida:1.96},
+  dulce:      {ico:'dulce',      rareza:'epica',      costo:64,  dias:12, miel:88,  comida:2.24},
+  reina:      {ico:'reina',      rareza:'legendaria', costo:90,  dias:13, miel:119, comida:3.15},
+  guardiana:  {ico:'guardiana',  rareza:'legendaria', costo:115, dias:13, miel:152, comida:4.03, inmune:true},
+  cristal:    {ico:'cristal',    rareza:'legendaria', costo:145, dias:14, miel:182, comida:5.08, inmune:true},
+  cosmica:    {ico:'cosmica',    rareza:'legendaria', costo:185, dias:14, miel:232, comida:6.48, inmune:true}
+};
+const NOMBRE_ABEJA = {
+  obrera:'abObrera', selvatica:'abSelvatica', mielera:'abMielera', florista:'abFlorista',
+  minera:'abMinera', escarcha:'abEscarcha', ignea:'abIgnea', dulce:'abDulce',
+  reina:'abReina', guardiana:'abGuardiana', cristal:'abCristal', cosmica:'abCosmica'
 };
 for(const k in ABEJAS){
   const a = ABEJAS[k];
+  Object.defineProperty(a, 'nom', { get(){ return tr(NOMBRE_ABEJA[k]); } });
   a.color = RAREZAS[a.rareza].color;
   a.tope  = Math.round(a.miel * 2);                      // el panal aguanta 2 días
   a.gasta = a.costo + a.comida * a.dias;
   a.saca  = a.miel * a.dias / MIEL_POR_BUZZ;
   a.neto  = a.saca - a.gasta;
   if(a.inmune) a.rasgo = 'la plaga no la toca';
-  a.desc = `Vive ${a.dias} días · ${a.miel} miel por día · come ${red(a.comida)} BUZZ por día`
-         + `<br>Gastás ${red(a.gasta)} y recuperás ${red(a.saca)} BUZZ: <b style="color:var(--savia)">+${red(a.neto)}</b>`
-         + (a.rasgo ? `<br><i style="color:${a.color}">${a.rasgo}</i>` : '');
+  Object.defineProperty(a, 'desc', { get(){
+    return tr('abDesc', a.dias, a.miel, red(a.comida))
+         + tr('abDesc2', red(a.gasta), red(a.saca), red(a.neto))
+         + (a.inmune ? '<br><i style="color:'+a.color+'">' + tr('abInmune') + '</i>' : '');
+  }});
 }
 
 const INSUMOS = {
-  polen:{nom:'Polen', ico:'polen', costo:3, desc:'Un día entero de miel de golpe. Una vez por abeja.'},
-  humo: {nom:'Humo',  ico:'humo',  costo:5, desc:'Espanta la plaga. Con plaga, la abeja no produce.'}
+  polen:{ico:'polen', costo:3},
+  humo: {ico:'humo',  costo:5}
 };
+for(const k in INSUMOS){
+  Object.defineProperty(INSUMOS[k], 'nom',  { get(){ return tr(k); } });
+  Object.defineProperty(INSUMOS[k], 'desc', { get(){ return tr(k + 'Desc'); } });
+}
 
 /* Los dos primeros panales vienen abiertos. Los otros se compran con
    BUZZ Y sólo aceptan abejas hasta cierta rareza: eso es lo
@@ -825,6 +1273,9 @@ const POSICIONES = [
 const S = {
   buzz:60,           // BUZZ retenido en el juego, todavía sin retirar
   miel:0,
+  guardado:0,        // BUZZ bloqueado en Ganar
+  ganado:0,          // parte del pozo todavía sin cobrar
+  pozoTotal:0,       // lo que la máquina juntó desde siempre
   quemado:0,         // lo que se quemó al retirar
   retirado:0,        // lo que ya pasó a la wallet
   casa:{ buzz:{ap:0, pa:0, gratis:0, usados:0, dia:0, ultimoGratis:0, apuestas:null} },
@@ -862,6 +1313,19 @@ function plazo(seg){
 // ---- iconos del cascarón ----
 function pintarIconos(){
   document.querySelectorAll('[data-ico]').forEach(el => el.src = ICO[el.dataset.ico]);
+}
+
+/* Cada elemento con data-t toma su texto del diccionario. Así cambiar de
+   idioma es volver a recorrer el documento, sin tocar el HTML. */
+function pintarTextos(){
+  document.querySelectorAll('[data-tph]').forEach(el => { el.placeholder = tr(el.dataset.tph); });
+  document.querySelectorAll('[data-t]').forEach(el => {
+    const html = el.dataset.html === '1';
+    const txt = tr(el.dataset.t);
+    if(html) el.innerHTML = txt; else el.textContent = txt;
+  });
+  const b = document.getElementById('btnIdioma');
+  if(b) b.textContent = idioma.toUpperCase();
 }
 
 // ---- el reloj del juego ----
@@ -959,15 +1423,14 @@ function pintarParcelas(){
   });
 
   const ocupados = S.panales.filter(Boolean).length;
-  document.getElementById('conteoPanales').textContent =
-    ocupados + '/' + S.abiertos + ' panales';
+  document.getElementById('conteoPanales').textContent = tr('panales', ocupados, S.abiertos);
 
   const hay = S.panales.filter(b => b && b.miel >= 1);
   const btn = document.getElementById('cosecharTodo');
   btn.classList.toggle('on', hay.length > 0);
   if(hay.length){
     const total = Math.floor(hay.reduce((s, b) => s + b.miel, 0));
-    document.getElementById('txtCosechar').textContent = 'Cosechar todo +' + total;
+    document.getElementById('txtCosechar').textContent = tr('cosecharMas', total);
   }
 }
 
@@ -1009,8 +1472,8 @@ function tocar(i){
       ' Acá entran abejas hasta <b style="color:'+RAREZAS[PANALES[i].tope].color+'">'
         + RAREZAS[PANALES[i].tope].nom + '</b>.' + '</p>' +
       (tengo.length
-        ? tengo.map(([t,c]) => filaAbeja(t, 'tenés '+c, 'poner', 'Poner')).join('')
-        : '<div class="nada">No te queda ninguna abeja.<br>Comprá en la tienda.</div>') +
+        ? tengo.map(([k,c]) => filaAbeja(k, tr('tenes', c), 'poner', tr('poner'))).join('')
+        : '<div class="nada">'+tr('sinAbejas')+'</div>') +
       '<button class="grande gris" onclick="cerrar(\'panal\')">Cerrar</button>';
     abrir('panal'); return;
   }
@@ -1152,7 +1615,7 @@ function verTienda(cual){
     cont.innerHTML = ['todas', ...Object.keys(RAREZAS)].map(r => {
       const on = r === filtro;
       const col = r === 'todas' ? 'var(--miel)' : RAREZAS[r].color;
-      const nom = r === 'todas' ? 'Todas' : RAREZAS[r].nom;
+      const nom = r === 'todas' ? tr('todas') : RAREZAS[r].nom;
       return '<button class="filtro'+(on?' on':'')+'" onclick="filtrar(\''+r+'\')"' +
              (on ? ' style="background:'+col+'; border-color:'+col+'"' : ' style="color:'+col+'"') +
              '>'+nom+'</button>';
@@ -1164,9 +1627,9 @@ function verTienda(cual){
         '<div class="info"><b>'+a.nom+'</b><small>'+a.desc+'</small>' +
         '<span class="rar" style="color:'+a.color+'; border-color:'+a.color+'">'+RAREZAS[a.rareza].nom+'</span></div>' +
         '<div class="lado"><span class="n">'+red2(a.costo*factor())+' BUZZ</span>' +
-        '<button class="acc" onclick="comprarAbeja(\''+t+'\')"'+(puede?'':' disabled')+'>Comprar</button>' +
+        '<button class="acc" onclick="comprarAbeja(\''+t+'\')"'+(puede?'':' disabled')+'>'+tr('comprar')+'</button>' +
         '</div></div>';
-    }).join('') || '<div class="nada">Nada en esta rareza.</div>';
+    }).join('') || '<div class="nada">'+tr('nadaRareza')+'</div>';
     return;
   }
 
@@ -1199,7 +1662,7 @@ function verMochila(){
   const ab = Object.entries(S.mochila).filter(([,c]) => c > 0);
   const ins = Object.entries(S.insumos).filter(([,c]) => c > 0);
   listaMochila.innerHTML = (!ab.length && !ins.length)
-    ? '<div class="nada">Tu mochila está vacía.<br>Pasá por la tienda.</div>'
+    ? '<div class="nada">'+tr('mochilaVacia')+'</div>'
     : ab.map(([t,c]) => filaAbeja(t, '×'+c, null, '')).join('') +
       ins.map(([t,c]) =>
         '<div class="item"><img src="'+ICO[INSUMOS[t].ico]+'" alt="">' +
@@ -1267,11 +1730,13 @@ function retirar(){
 }
 
 // ---- hojas ----
-const HOJAS = {tienda:'hTienda', mochila:'hMochila', mercado:'hMercado', suerte:'hSuerte', panal:'hPanal'};
+const HOJAS = {tienda:'hTienda', mochila:'hMochila', mercado:'hMercado',
+               ganar:'hGanar', suerte:'hSuerte', panal:'hPanal'};
 function abrir(c){
   if(c === 'tienda')  verTienda(pestana);
   if(c === 'mochila') verMochila();
   if(c === 'mercado') verMercado();
+  if(c === 'ganar')   verGanar();
   if(c === 'suerte')  verSuerte();
   document.getElementById(HOJAS[c]).classList.add('on');
 }
@@ -1340,16 +1805,20 @@ const CASILLAS_TOTAL = 36;
    30/36 = 83,3%. Para que BAR pagara ×30 y el siete ×15 había que pasar
    de 28 a 36 casillas: con 28 la cuenta daba 107% y perdía la casa. */
 const SIMB = [
-  {id:'obrera',     ico:'sObrera',     nom:'Abeja',            x:3,  n:10, col:'#ffc107'},
-  {id:'rara',       ico:'sRara',       nom:'Abeja rara',       x:5,  n:6,  col:'#7bd88f'},
-  {id:'panal',      ico:'sPanal',      nom:'Panal',            x:6,  n:5,  col:'#ffb300'},
-  {id:'legendaria', ico:'sLegendaria', nom:'Abeja legendaria', x:10, n:3,  col:'#ff7a3d'},
-  {id:'mistica',    ico:'sMistica',    nom:'Abeja mística',    x:10, n:3,  col:'#b47cff'},
-  {id:'trueno',     ico:'sTrueno',     nom:'Abeja del trueno', x:10, n:3,  col:'#4fc3f7'},
-  {id:'buzz',       ico:'buzz',        nom:'Logo BUZZ',        x:10, n:3,  col:'#fff3a0'},
-  {id:'siete',      ico:'sSiete',      nom:'El siete',         x:15, n:2,  col:'#ff3d3d'},
-  {id:'bar',        ico:'sBar',        nom:'BAR',              x:30, n:1,  col:'#e0e0e0'}
+  {id:'obrera',     ico:'sObrera',     clave:'abeja',          x:3,  n:10, col:'#ffc107'},
+  {id:'rara',       ico:'sRara',       clave:'abejaRara',      x:5,  n:6,  col:'#7bd88f'},
+  {id:'panal',      ico:'sPanal',      clave:'panal',          x:6,  n:5,  col:'#ffb300'},
+  {id:'legendaria', ico:'sLegendaria', clave:'abejaLeg',       x:10, n:3,  col:'#ff7a3d'},
+  {id:'mistica',    ico:'sMistica',    clave:'abejaMis',       x:10, n:3,  col:'#b47cff'},
+  {id:'trueno',     ico:'sTrueno',     clave:'abejaTru',       x:10, n:3,  col:'#4fc3f7'},
+  {id:'buzz',       ico:'buzz',        clave:'logoBuzz',       x:10, n:3,  col:'#fff3a0'},
+  {id:'siete',      ico:'sSiete',      clave:'elSiete',        x:15, n:2,  col:'#ff3d3d'},
+  {id:'bar',        ico:'sBar',        clave:'bar',            x:30, n:1,  col:'#e0e0e0'}
 ];
+/* El nombre de cada símbolo también sale del idioma elegido. */
+for(const s of SIMB){
+  Object.defineProperty(s, 'nom', { get(){ return tr(this.clave); } });
+}
 
 // dónde cae cada casilla en la grilla de 8x8, dando la vuelta al reloj
 const LADO = 10;
@@ -1457,7 +1926,7 @@ const GRATIS_POR_DIA = 5;
 const ESPERA_GRATIS  = 1 * 3600;   // un rato entre uno y otro, en segundos del juego
 const FICHA_GRATIS   = 1;
 
-const MONEDAS = { buzz:{nom:'BUZZ', ico:'buzz', col:'#ffc107'} };
+const MONEDAS = { buzz:{ico:'buzz', col:'#ffc107'} };
 const moneda = 'buzz';
 const caja = () => S.casa[moneda];
 
@@ -1494,6 +1963,64 @@ function regalarGiro(){
   setTimeout(() => { if(!girando && caja().gratis > 0) girarSlot(); }, 1300);
 }
 
+
+/* ---- Ganar ----
+   No es un interés: no hay tasa prometida ni sale nada de la reserva.
+   La mitad de lo que se queda la máquina va a un pozo que se reparte
+   entre los que tienen BUZZ guardado, a proporción de cuánto tenga cada
+   uno. Si una semana no juega nadie, el pozo es chico y listo. */
+const AL_POZO = 0.5;                 // la otra mitad queda en la casa
+const OTROS_GUARDADO = 50000;        // lo que tienen guardado los demás (simulado)
+
+function tuParte(){
+  const total = S.guardado + OTROS_GUARDADO;
+  return total > 0 ? S.guardado / total : 0;
+}
+/* El pozo se calcula sobre el acumulado, no tirada por tirada: lo que la
+   casa se quedó es apostado menos pagado, y eso recién se sabe cuando el
+   premio ya está acreditado. Antes se contaba la apuesta entera como
+   ganancia de la casa y el pozo se llenaba de más. */
+function actualizarPozo(){
+  const c = S.casa.buzz;
+  const debido = Math.max(0, (c.ap - c.pa)) * AL_POZO;
+  if(debido > S.pozoTotal){
+    const nuevo = debido - S.pozoTotal;
+    S.pozoTotal = debido;
+    S.ganado += nuevo * tuParte();
+  }
+}
+
+function guardarBuzz(){
+  const v = parseFloat(document.getElementById('inputGuardar').value);
+  if(!(v > 0)){ avisar(tr('avFaltaBuzz')); return; }
+  if(S.buzz < v){ avisar(tr('avFaltaBuzz')); return; }
+  S.buzz -= v; S.guardado += v;
+  document.getElementById('inputGuardar').value = '';
+  avisar(tr('avGuardaste', red2(v)));
+  refrescar(); verGanar();
+}
+function sacarGuardado(){
+  if(S.guardado <= 0){ avisar(tr('sinGuardado')); return; }
+  const v = red2(S.guardado);
+  S.buzz += v; S.guardado = 0;
+  avisar(tr('avSacaste', v));
+  refrescar(); verGanar();
+}
+function cobrarGanado(){
+  if(S.ganado < 0.01){ avisar(tr('sinGanado')); return; }
+  const v = red2(S.ganado);
+  S.buzz += v; S.ganado = 0;
+  avisar(tr('avCobrado', v));
+  refrescar(); verGanar();
+}
+function verGanar(){
+  document.getElementById('gGuardado').textContent = red2(S.guardado) + ' BUZZ';
+  document.getElementById('gParte').textContent = (tuParte()*100).toFixed(2) + '%';
+  document.getElementById('gGanado').textContent = red2(S.ganado) + ' BUZZ';
+  document.getElementById('gPozo').textContent = red2(S.pozoTotal) + ' BUZZ';
+  document.getElementById('btnSacarG').disabled  = S.guardado <= 0;
+  document.getElementById('btnCobrarG').disabled = S.ganado < 0.01;
+}
 
 const FICHAS_AP = [1, 5, 25];
 let ficha = 1;
@@ -1595,6 +2122,7 @@ async function girarSlot(){
     c.ap += total;
     c.apuestas = Object.assign({}, apuestas);   // sólo se recuerda lo que pagaste
   }
+
   pintarApuestas();
   document.getElementById('resuSlot').textContent = gratis ? 'Girando gratis...' : 'Girando...';
   visor('<img class="logo gira" src="'+ICO.logo+'" alt=""><small>a ver qué sale</small>');
@@ -1641,6 +2169,7 @@ async function girarSlot(){
   apuestas = Object.fromEntries(SIMB.map(s => [s.id, 0]));
   girando = false;
   setTimeout(() => slot.classList.remove('gano'), 1900);
+  actualizarPozo();      // la mitad de lo que se quedó la casa va al pozo
   pintarApuestas(); refrescar();
   if(pago <= 0) regalarGiro();            // el consuelo es sólo por perder
 }
@@ -1758,6 +2287,7 @@ function cobrar(){
   }
   dobladas = 0;
   document.getElementById('doblar').classList.remove('on');
+  actualizarPozo();
   refrescar(); pintarApuestas();
 }
 
@@ -1840,6 +2370,7 @@ window.addEventListener('load', async () => {
 
 
 pintarIconos();
+pintarTextos();
 armarParcelas();
 barajarMarco();
 pintarMaquina();
