@@ -65,6 +65,8 @@ body{
    El scaleX negativo la hace mirar hacia donde va; al cambiar de signo
    pasa por cero y se ve como si girara sobre sí misma. */
 .parcela .abeja{animation:orbitar 7s linear infinite;}
+/* la segunda arranca media vuelta después: nunca se cruzan */
+.parcela .abeja.ab1{animation-delay:-3.5s;}
 .parcela:nth-child(2) .abeja{animation-delay:-1.1s;}
 .parcela:nth-child(3) .abeja{animation-delay:-2.3s;}
 .parcela:nth-child(4) .abeja{animation-delay:-3.5s;}
@@ -754,6 +756,11 @@ const ICO = {
    =================================================================== */
 const TEXTOS = {
   es: {
+    panalTit:'Panal {0}',
+    panalDos:'Entran dos abejas, de la rareza que quieras.',
+    lugar:'Lugar {0}',
+    lugarVacio:'vacío',
+    panalAbriloLibre:'Abrilo con BUZZ. Entran dos abejas y no hay restricción de rareza.',
     navGanar:'Ganar',
     ganarTit:'Ganar',
     ganarSub:'Guardá BUZZ y cobrás parte de lo que deja la máquina. No hay tasa prometida: se reparte lo que entró esa semana, a proporción de lo que tenga cada uno guardado.',
@@ -881,6 +888,11 @@ const TEXTOS = {
   },
 
   en: {
+    panalTit:'Cell {0}',
+    panalDos:'It holds two bees, any tier you like.',
+    lugar:'Slot {0}',
+    lugarVacio:'empty',
+    panalAbriloLibre:'Unlock it with BUZZ. It holds two bees and there is no tier restriction.',
     navGanar:'Earn',
     ganarTit:'Earn',
     ganarSub:'Lock BUZZ and take a share of what the machine keeps. There is no promised rate: whatever came in that week is split in proportion to what each player has locked.',
@@ -1008,6 +1020,11 @@ const TEXTOS = {
   },
 
   pt: {
+    panalTit:'Favo {0}',
+    panalDos:'Cabem duas abelhas, da raridade que quiser.',
+    lugar:'Lugar {0}',
+    lugarVacio:'vazio',
+    panalAbriloLibre:'Abra com BUZZ. Cabem duas abelhas e não há restrição de raridade.',
     navGanar:'Ganhar',
     ganarTit:'Ganhar',
     ganarSub:'Guarde BUZZ e receba parte do que a máquina fica. Não há taxa prometida: divide-se o que entrou naquela semana, proporcional ao que cada um tem guardado.',
@@ -1173,7 +1190,8 @@ const factor = () => PRECIO_BASE / precioBuzz;
 const enBuzz = v => red2(v / precioBuzz);   // pasa un valor de referencia a BUZZ
 
 const DIA = 86400;           // un día es un día: 24 horas de verdad
-const PLAGA_CADA = 2;        // en promedio, una plaga por abeja cada 2 días
+const PLAGAS_POR_DIA = 2;    // cuántas abejas se enferman por día, como mucho
+let contadorAbeja = 0;       // para poder recordar a cuál le tocó ayer
 const MIEL_POR_BUZZ = 10;        // 10 miel = 1 BUZZ
 const QUEMA_RETIRO  = 0.005;    // 0,50% se quema al pasar el BUZZ a la wallet
 
@@ -1244,24 +1262,22 @@ for(const k in INSUMOS){
    BUZZ cada vez que se muere, no sólo a pagar el desbloqueo una vez. */
 const RAREZA_ORDEN = ['comun','rara','epica','legendaria'];
 
-/* Los panales van de a pares y cada par tiene un TECHO de rareza: en los
-   dos primeros no entra una Cósmica por más que la tengas. Para usar las
-   abejas buenas hay que abrir los panales de arriba, y eso devuelve
-   BUZZ a la reserva. */
-/* Cada panal tiene un valor de referencia interno. El BUZZ que se cobra
-   sale de cotizarlo al precio del momento: si el BUZZ sube, hacen falta
-   menos; si baja, más. El jugador sólo ve la cifra en BUZZ. */
+/* En cada panal entran DOS abejas y de cualquier rareza. Antes había un
+   techo por panal; se sacó para que el jugador arme la colmena como
+   quiera. Lo único que sigue costando es abrir el panal. */
+const POR_PANAL = 2;
+/* Todos los panales valen lo mismo: dos unidades de referencia. Antes
+   subían de precio porque cada par aceptaba mejores abejas; como ya no hay
+   rareza, no tiene sentido que uno cueste más que otro.
+   El jugador paga en BUZZ y sólo ve BUZZ: el contrato cotiza el valor de
+   referencia al precio del momento en cada compra. */
+const VALOR_PANAL = 2;
 const PANALES = [
-  {wld:0,  tope:'rara'},
-  {wld:1,  tope:'rara'},
-  {wld:4,  tope:'epica'},
-  {wld:4,  tope:'epica'},
-  {wld:10, tope:'legendaria'},
-  {wld:10, tope:'legendaria'}
+  {wld:0}, {wld:VALOR_PANAL}, {wld:VALOR_PANAL},
+  {wld:VALOR_PANAL}, {wld:VALOR_PANAL}, {wld:VALOR_PANAL}
 ];
 const costoPanal = i => enBuzz(PANALES[i].wld);
-const entra = (tipo, i) =>
-  RAREZA_ORDEN.indexOf(ABEJAS[tipo].rareza) <= RAREZA_ORDEN.indexOf(PANALES[i].tope);
+const entra = () => true;
 
 // posición de cada panal sobre la imagen del campo, en % del lienzo
 const POSICIONES = [
@@ -1282,7 +1298,7 @@ const S = {
   mochila:Object.fromEntries(Object.keys(ABEJAS).map(k => [k, k === 'obrera' ? 1 : 0])),
   insumos:{polen:2, humo:1},
   abiertos:1,                 // los otros cinco se compran con BUZZ
-  panales:Array(6).fill(null)
+  panales:Array.from({length:6}, () => [null, null])
 };
 let elegido = null, pestana = 'abejas', filtro = 'todas';
 
@@ -1332,19 +1348,19 @@ function pintarTextos(){
 function latir(){
   const t = ahora(), dt = Math.max(0, Math.min(DIA, t - ultimo));
   ultimo = t;
-  S.panales.forEach((b, i) => {
+  S.panales.forEach((par, i) => par.forEach((b, k) => {
     if(!b) return;
     if(t >= b.muereEn){
       const sobra = Math.floor(b.miel);
       S.miel += sobra;
-      S.panales[i] = null;
-      avisar(ABEJAS[b.tipo].nom + ' murió de vieja' + (sobra ? ' · recogiste ' + sobra + ' miel' : ''));
+      par[k] = null;
+      avisar(sobra ? tr('avMurioMiel', ABEJAS[b.tipo].nom, sobra) : tr('avMurio', ABEJAS[b.tipo].nom));
       return;
     }
-    if(b.plaga || b.comeHasta <= t) return;          // con plaga o con hambre no produce
+    if(b.plaga || b.comeHasta <= t) return;
     const a = ABEJAS[b.tipo];
     b.miel = Math.min(a.tope, b.miel + a.miel * factor() * dt / DIA);
-  });
+  }));
 }
 
 // ---- dibujo del campo ----
@@ -1373,66 +1389,78 @@ function armarParcelas(){
 function pintarParcelas(){
   const t = ahora();
 
-  S.panales.forEach((b, i) => {
+  S.panales.forEach((par, i) => {
     const p = cajas[i];
     if(!p) return;
-    const firma = i >= S.abiertos ? 'cerrado' : (b ? b.tipo : 'vacio');
+    const vivas = par.filter(Boolean);
+    const firma = i >= S.abiertos ? 'cerrado'
+                : vivas.length === 0 ? 'vacio'
+                : par.map(b => b ? b.tipo : '-').join('|');
 
-    // el contenido sólo se rehace si cambió QUÉ hay en el panal
     if(p.dataset.firma !== firma){
       p.dataset.firma = firma;
       if(i >= S.abiertos){
         p.innerHTML = '<div class="candado"><div><div class="llave">🔒</div>' +
-          '<div class="precio">' + costoPanal(i) + ' BUZZ</div>' +
-          '<div class="precio" style="color:'+RAREZAS[PANALES[i].tope].color+'; margin-top:2px">' +
-          RAREZAS[PANALES[i].tope].nom + '</div></div></div>';
-      }else if(!b){
+          '<div class="precio">' + costoPanal(i) + ' BUZZ</div></div></div>';
+      }else if(vivas.length === 0){
         p.innerHTML = '<span class="mas">+</span>';
       }else{
-        const a = ABEJAS[b.tipo];
-        const brillo = (a.rareza === 'epica' || a.rareza === 'legendaria')
-          ? ' style="filter:drop-shadow(0 5px 7px rgba(0,0,0,.35)) drop-shadow(0 0 7px '+a.color+')"' : '';
-        p.innerHTML =
-          '<img class="abeja" src="'+ICO[a.ico]+'" alt=""'+brillo+'>' +
-          '<img class="marca-plaga" alt="" hidden>' +
-          '<span class="tiempo"></span>' +
-          '<span class="barra vida"><i></i></span>' +
-          '<span class="dias"></span>';
+        /* Las dos abejas recorren la misma órbita pero arrancan en puntos
+           opuestos: el retraso negativo de media vuelta hace que nunca se
+           crucen. */
+        p.innerHTML = par.map((b, k) => {
+          if(!b) return '';
+          const a = ABEJAS[b.tipo];
+          const brillo = (a.rareza === 'epica' || a.rareza === 'legendaria')
+            ? 'filter:drop-shadow(0 5px 7px rgba(0,0,0,.35)) drop-shadow(0 0 7px '+a.color+');' : '';
+          return '<img class="abeja ab'+k+'" src="'+ICO[a.ico]+'" alt="" ' +
+                 'style="'+brillo+(k === 1 ? 'animation-delay:-3.5s;' : '')+'">';
+        }).join('') +
+        '<img class="marca-plaga" alt="" hidden>' +
+        '<span class="tiempo"></span>' +
+        '<span class="barra vida"><i></i></span>' +
+        '<span class="dias"></span>';
       }
     }
 
     if(i >= S.abiertos){ p.className = 'parcela cerrado'; return; }
-    if(!b){ p.className = 'parcela'; return; }
+    if(vivas.length === 0){ p.className = 'parcela'; return; }
 
-    const a = ABEJAS[b.tipo];
-    const hambre = b.comeHasta <= t;
-    const llena  = b.miel >= a.tope - 0.5;
-    const vida   = Math.max(0, (b.muereEn - t) / (a.dias * DIA));
+    const plaga  = vivas.some(b => b.plaga);
+    const hambre = vivas.some(b => b.comeHasta <= t);
+    const llena  = vivas.every(b => b.miel >= ABEJAS[b.tipo].tope - 0.5);
+    const miel   = vivas.reduce((s, b) => s + b.miel, 0);
+    const queda  = Math.min.apply(null, vivas.map(b => b.muereEn - t));
+    const vida   = Math.max.apply(null, vivas.map(b =>
+                     (b.muereEn - t) / (ABEJAS[b.tipo].dias * DIA)));
 
-    p.className = 'parcela' + (b.plaga ? ' plaga' : hambre ? ' hambre' : llena ? ' lista' : '');
+    p.className = 'parcela' + (plaga ? ' plaga' : hambre ? ' hambre' : llena ? ' lista' : '');
 
     const marca = p.querySelector('.marca-plaga');
-    if(b.plaga){      marca.hidden = false; marca.src = ICO.plaga; }
+    if(plaga){        marca.hidden = false; marca.src = ICO.plaga; }
     else if(hambre){  marca.hidden = false; marca.src = ICO.alerta; }
     else              marca.hidden = true;
 
     p.querySelector('.tiempo').textContent =
-      b.plaga ? 'plaga' : hambre ? 'sin comida' : llena ? 'panal lleno' : '+' + red(b.miel);
-    p.querySelector('.barra.vida i').style.width = Math.round(vida * 100) + '%';
-    p.querySelector('.dias').textContent = plazo(b.muereEn - t);
+      plaga ? tr('etPlaga') : hambre ? tr('etHambre') : llena ? tr('etLleno') : '+' + red(miel);
+    p.querySelector('.barra.vida i').style.width = Math.round(Math.max(0, vida) * 100) + '%';
+    p.querySelector('.dias').textContent = plazo(queda);
   });
 
-  const ocupados = S.panales.filter(Boolean).length;
-  document.getElementById('conteoPanales').textContent = tr('panales', ocupados, S.abiertos);
+  const ocupados = S.panales.reduce((s, par) => s + par.filter(Boolean).length, 0);
+  const lugares  = S.abiertos * POR_PANAL;
+  document.getElementById('conteoPanales').textContent = tr('panales', ocupados, lugares);
 
-  const hay = S.panales.filter(b => b && b.miel >= 1);
+  const hay = S.panales.some(par => par.some(b => b && b.miel >= 1));
   const btn = document.getElementById('cosecharTodo');
-  btn.classList.toggle('on', hay.length > 0);
-  if(hay.length){
-    const total = Math.floor(hay.reduce((s, b) => s + b.miel, 0));
+  btn.classList.toggle('on', hay);
+  if(hay){
+    const total = Math.floor(S.panales.reduce((s, par) =>
+      s + par.reduce((x, b) => x + (b ? b.miel : 0), 0), 0));
     document.getElementById('txtCosechar').textContent = tr('cosecharMas', total);
   }
 }
+
 
 function pintarNumeros(){
   vBuzz.textContent = red(S.buzz);
@@ -1441,77 +1469,91 @@ function pintarNumeros(){
 function refrescar(){ pintarNumeros(); pintarParcelas(); }
 
 // ---- panal ----
+let lugar = 0;      // cuál de los dos lugares del panal se está tocando
+
 function tocar(i){
   elegido = i;
-  const b = S.panales[i];
+  const par = S.panales[i];
   const caja = document.getElementById('cajaPanal');
 
   if(i >= S.abiertos){
-    const p = PANALES[i];
-    const costoAbrir = costoPanal(i);
-    const rar = RAREZAS[p.tope];
-    const puede = i === S.abiertos;          // se abren en orden
-    caja.innerHTML = '<div class="tira"></div><h2>Panal cerrado</h2>' +
-      '<p class="sub">' +
-        (puede ? 'Abrilo con BUZZ. Acá entran abejas hasta <b style="color:'+rar.color+'">'
-                 + rar.nom + '</b>: es el único lugar donde vas a poder usarlas.'
-               : 'Primero abrí el panal anterior.') + '</p>' +
-      '<div class="dato"><span>Cuesta</span><b>' + costoPanal(i) + ' BUZZ</b></div>' +
-      '<div class="dato"><span>Acepta hasta</span><b style="color:'+rar.color+'">' + rar.nom + '</b></div>' +
-      '<div class="dato"><span>Tenés</span><b>' + red(S.buzz) + ' BUZZ</b></div>' +
+    const p = PANALES[i], puede = i === S.abiertos;
+    caja.innerHTML = '<div class="tira"></div><h2>' + tr('panalCerrado') + '</h2>' +
+      '<p class="sub">' + (puede ? tr('panalAbriloLibre') : tr('panalAnterior')) + '</p>' +
+      '<div class="dato"><span>' + tr('cuesta') + '</span><b>' + costoPanal(i) + ' BUZZ</b></div>' +
+      '<div class="dato"><span>' + tr('tenesTotal') + '</span><b>' + red(S.buzz) + ' BUZZ</b></div>' +
       '<button class="grande" onclick="abrirPanal()"' +
-        (puede && S.buzz >= costoPanal(i) ? '' : ' disabled') + '>Abrir por ' + costoPanal(i) + ' BUZZ</button>' +
-      '<button class="grande gris" onclick="cerrar(\'panal\')">Cerrar</button>';
+        (puede && S.buzz >= costoPanal(i) ? '' : ' disabled') + '>' + tr('abrirPor', costoPanal(i)) + '</button>' +
+      '<button class="grande gris" onclick="cerrar(\'panal\')">' + tr('cerrar') + '</button>';
     abrir('panal'); return;
   }
 
+  let html = '<div class="tira"></div><h2>' + tr('panalTit', i + 1) + '</h2>' +
+             '<p class="sub">' + tr('panalDos') + '</p>';
+
+  par.forEach((b, k) => {
+    html += bloqueLugar(i, k, b);
+  });
+
+  html += '<button class="grande gris" onclick="cerrar(\'panal\')">' + tr('cerrar') + '</button>';
+  caja.innerHTML = html;
+  abrir('panal');
+}
+
+/* Cada lugar del panal se dibuja igual: si está vacío ofrece poner, y si
+   tiene abeja muestra su estado y sus botones. */
+function bloqueLugar(i, k, b){
+  const t = ahora();
   if(!b){
     const tengo = Object.entries(S.mochila).filter(([,c]) => c > 0);
-    caja.innerHTML = '<div class="tira"></div><h2>Panal vacío</h2>' +
-      '<p class="sub">Poné una abeja. Acordate de darle de comer o deja de producir.' +
-      ' Acá entran abejas hasta <b style="color:'+RAREZAS[PANALES[i].tope].color+'">'
-        + RAREZAS[PANALES[i].tope].nom + '</b>.' + '</p>' +
-      (tengo.length
-        ? tengo.map(([k,c]) => filaAbeja(k, tr('tenes', c), 'poner', tr('poner'))).join('')
-        : '<div class="nada">'+tr('sinAbejas')+'</div>') +
-      '<button class="grande gris" onclick="cerrar(\'panal\')">Cerrar</button>';
-    abrir('panal'); return;
+    return '<div class="dato" style="margin-top:12px"><span><b>' + tr('lugar', k + 1) + '</b><br>' +
+      '<small style="color:var(--tenue)">' + tr('lugarVacio') + '</small></span>' +
+      '<button class="acc" onclick="verPoner(' + k + ')"' + (tengo.length ? '' : ' disabled') + '>' +
+      tr('poner') + '</button></div>';
   }
 
   const a = ABEJAS[b.tipo];
-  const t = ahora();
   const hambre = b.comeHasta <= t;
-  const llena = b.miel >= a.tope - 0.5;
-  const comidaQueda = Math.max(0, dias(b.comeHasta - t));
-  const vidaQueda = Math.max(0, dias(b.muereEn - t));
+  const llena  = b.miel >= a.tope - 0.5;
   const puedeComer = Math.max(0, Math.min(3 * DIA, b.muereEn - Math.max(t, b.comeHasta)));
   const costo3 = red2(a.comida * puedeComer / DIA * factor());
 
-  caja.innerHTML = '<div class="tira"></div>' +
-    '<h2>'+a.nom+' <span class="rar" style="color:'+a.color+'; border-color:'+a.color+'">'+RAREZAS[a.rareza].nom+'</span></h2>' +
-    '<p class="sub">' +
-      (b.plaga ? 'Tiene plaga: no produce hasta que uses humo.'
-       : hambre ? 'Se quedó <b style="color:var(--alarma)">sin comida</b>: no produce hasta que la alimentes.'
-       : llena  ? 'El panal está lleno, cosechá para que siga produciendo.'
-                : 'Produciendo '+a.miel+' miel por día.') +
-      '<br>Le queda <b>'+plazo(b.muereEn - t)+' de vida</b> · comida para '+plazo(b.comeHasta - t)+'</p>' +
-
-    '<div class="item"><img data-ico="miel" src="'+ICO.miel+'" alt="">' +
-      '<div class="info"><b>'+red(b.miel)+' miel en el panal</b>' +
-      '<small>Tope '+a.tope+'. Cuando se llena, la abeja para.</small></div></div>' +
+  return '<div class="item" style="margin-top:12px">' +
+    '<img class="bicho" style="border-color:' + a.color + '" src="' + ICO[a.ico] + '" alt="">' +
+    '<div class="info"><b>' + a.nom + '</b><small>' +
+      (b.plaga ? tr('conPlaga') : hambre ? tr('conHambre') : llena ? tr('panalLleno')
+        : tr('produciendo', Math.round(a.miel * factor()))) +
+      tr('leQueda', plazo(b.muereEn - t), plazo(b.comeHasta - t)) +
+      '<br>' + tr('mielEnPanal', red(b.miel)) + '</small></div></div>' +
 
     (b.plaga
-      ? '<button class="grande" onclick="humo()"'+(S.insumos.humo>0?'':' disabled')+'>Usar humo ('+S.insumos.humo+')</button>'
-      : '<button class="grande" onclick="cosechar()"'+(b.miel>=1?'':' disabled')+'>Cosechar '+Math.floor(b.miel)+' miel</button>') +
+      ? '<button class="grande" onclick="humo(' + k + ')"' + (S.insumos.humo > 0 ? '' : ' disabled') + '>' +
+        tr('usarHumo', S.insumos.humo) + '</button>'
+      : '<button class="grande" onclick="cosechar(' + k + ')"' + (b.miel >= 1 ? '' : ' disabled') + '>' +
+        tr('cosecharMiel', Math.floor(b.miel)) + '</button>') +
 
-    '<button class="grande gris" onclick="alimentar()"'+(S.buzz>=costo3 && puedeComer>0?'':' disabled')+'>' +
-      (puedeComer <= 0 ? 'Ya comió todo lo que le queda de vida'
-        : 'Alimentar ' + red(puedeComer/DIA) + ' día(s) · ' + costo3 + ' BUZZ') + '</button>' +
+    '<button class="grande gris" onclick="alimentar(' + k + ')"' +
+      (S.buzz >= costo3 && puedeComer > 0 ? '' : ' disabled') + '>' +
+      (puedeComer <= 0 ? tr('yaComio') : tr('alimentarDias', red(puedeComer / DIA), costo3)) + '</button>' +
+
     (!b.plaga && !b.polen
-      ? '<button class="grande gris" onclick="polen()"'+(S.insumos.polen>0?'':' disabled')+'>Usar polen · +'+a.miel+' miel ('+S.insumos.polen+')</button>'
-      : '') +
-    '<button class="grande gris" onclick="cerrar(\'panal\')">Cerrar</button>';
-  abrir('panal');
+      ? '<button class="grande gris" onclick="polen(' + k + ')"' + (S.insumos.polen > 0 ? '' : ' disabled') + '>' +
+        tr('usarPolen', Math.round(a.miel * factor()), S.insumos.polen) + '</button>'
+      : '');
+}
+
+/* Lista de abejas para llenar un lugar. Ya no hay rareza que valga: entra
+   cualquiera. */
+function verPoner(k){
+  lugar = k;
+  const tengo = Object.entries(S.mochila).filter(([,c]) => c > 0);
+  document.getElementById('cajaPanal').innerHTML =
+    '<div class="tira"></div><h2>' + tr('panalVacio') + '</h2>' +
+    '<p class="sub">' + tr('panalVacioSub') + '</p>' +
+    (tengo.length
+      ? tengo.map(([id, c]) => filaAbeja(id, tr('tenes', c), 'poner', tr('poner'))).join('')
+      : '<div class="nada">' + tr('sinAbejas') + '</div>') +
+    '<button class="grande gris" onclick="tocar(elegido)">' + tr('cerrar') + '</button>';
 }
 
 function filaAbeja(t, nota, fn, txt){
@@ -1525,85 +1567,80 @@ function filaAbeja(t, nota, fn, txt){
 }
 
 function abrirPanal(){
-  const i = elegido, p = PANALES[i];
-  const costo = costoPanal(i);
+  const i = elegido, costo = costoPanal(i);
   if(i !== S.abiertos || S.buzz < costo) return;
   S.buzz -= costo;
   S.abiertos++;
   cerrar('panal'); refrescar();
-  avisar('Panal ' + (i+1) + ' abierto · -' + costo + ' BUZZ');
+  avisar(tr('avPanalAbierto', i + 1, costo));
 }
 
 function poner(t){
   if(S.mochila[t] <= 0) return;
-  if(!entra(t, elegido)){
-    avisar('En este panal sólo entran hasta ' + RAREZAS[PANALES[elegido].tope].nom);
-    return;
-  }
-  const a = ABEJAS[t];
+  const par = S.panales[elegido];
+  if(par[lugar]) return;
+  const a = ABEJAS[t], n = ahora();
   S.mochila[t]--;
-  const n = ahora();
-  S.panales[elegido] = {
-    tipo:t, nace:n,
-    muereEn: n + a.dias * DIA,
-    comeHasta: n + DIA,          // viene con un día de comida puesto
+  par[lugar] = {
+    id: ++contadorAbeja,
+    tipo:t, muereEn:n + a.dias * DIA, comeHasta:n + DIA,
     miel:0, plaga:false, polen:false
   };
-  cerrar('panal'); refrescar();
-  avisar(a.nom + ' al panal · vive '+a.dias+' días');
+  tocar(elegido); refrescar();
+  avisar(tr('avAlPanal', a.nom, a.dias));
 }
-/* Sólo se cobra la comida que la abeja va a poder usar: si le quedan
-   dos días de vida, no tiene sentido pagarle tres. Sin este tope el
-   jugador podía gastar de más sin darse cuenta. */
-function alimentar(){
-  const b = S.panales[elegido]; if(!b) return;
+
+function alimentar(k){
+  const b = S.panales[elegido][k]; if(!b) return;
   const a = ABEJAS[b.tipo], t = ahora();
   const desde = Math.max(t, b.comeHasta);
   const puede = Math.max(0, Math.min(3 * DIA, b.muereEn - desde));
-  if(puede <= 0){ avisar('Ya tiene comida para toda su vida'); return; }
-  const dias = puede / DIA;
-  const costo = red2(a.comida * dias * factor());
-  if(S.buzz < costo){ avisar('Te falta BUZZ'); return; }
+  if(puede <= 0){ avisar(tr('yaComio')); return; }
+  const dias = puede / DIA, costo = red2(a.comida * dias * factor());
+  if(S.buzz < costo){ avisar(tr('avFaltaBuzz')); return; }
   S.buzz -= costo;
   b.comeHasta = desde + puede;
   tocar(elegido); refrescar();
-  avisar('Comió por ' + red(dias) + ' día(s) · -' + costo + ' BUZZ');
+  avisar(tr('avComio', red(dias), costo));
 }
-function polen(){
-  const b = S.panales[elegido];
+
+function polen(k){
+  const b = S.panales[elegido][k];
   if(!b || b.polen || S.insumos.polen <= 0) return;
   const a = ABEJAS[b.tipo];
   S.insumos.polen--; b.polen = true;
-  b.miel = Math.min(a.tope, b.miel + a.miel);
-  tocar(elegido); refrescar(); avisar('+' + a.miel + ' miel de una');
-}
-function humo(){
-  const b = S.panales[elegido];
-  if(!b || !b.plaga || S.insumos.humo <= 0) return;
-  S.insumos.humo--; b.plaga = false;
-  tocar(elegido); refrescar(); avisar('Plaga espantada');
-}
-function cosechar(){
-  const g = recolectar(elegido);
-  if(!g) return;
-  tocar(elegido); refrescar(); avisar('+' + g + ' miel al costal');
-}
-function recolectar(i){
-  const b = S.panales[i];
-  if(!b || b.miel < 1) return 0;
-  const g = Math.floor(b.miel);
-  S.miel += g; b.miel -= g;
-  return g;
-}
-function cosecharTodo(){
-  let total = 0;
-  S.panales.forEach((b, i) => total += recolectar(i));
-  if(!total){ avisar('Todavía no hay miel para cosechar'); return; }
-  refrescar();
-  avisar('+' + total + ' miel · cambiala por BUZZ en el mercado');
+  b.miel = Math.min(a.tope, b.miel + a.miel * factor());
+  tocar(elegido); refrescar();
+  avisar('+' + Math.round(a.miel * factor()) + ' miel');
 }
 
-// ---- tienda ----
+function humo(k){
+  const b = S.panales[elegido][k];
+  if(!b || !b.plaga || S.insumos.humo <= 0) return;
+  S.insumos.humo--; b.plaga = false;
+  tocar(elegido); refrescar();
+  avisar(tr('avHumo'));
+}
+
+function cosechar(k){
+  const b = S.panales[elegido][k];
+  if(!b || b.miel < 1) return;
+  const g = Math.floor(b.miel);
+  S.miel += g; b.miel -= g;
+  tocar(elegido); refrescar();
+  avisar(tr('avCosechado', g));
+}
+
+function cosecharTodo(){
+  let total = 0;
+  S.panales.forEach(par => par.forEach(b => {
+    if(b && b.miel >= 1){ const g = Math.floor(b.miel); S.miel += g; b.miel -= g; total += g; }
+  }));
+  if(!total){ avisar(tr('avNadaCosechar')); return; }
+  refrescar();
+  avisar(tr('avCosechado', total));
+}
+
 function verTienda(cual){
   pestana = cual;
   pAbejas.classList.toggle('on', cual === 'abejas');
@@ -1765,19 +1802,54 @@ function avisar(txt){
 /* En promedio una plaga por abeja cada PLAGA_CADA días. Se mide contra el
    reloj del juego, así que en modo prueba caen igual de seguido en
    proporción y no una cada 12 segundos. */
-let ultimaPlaga = ahora();
+/* ---- las plagas ----
+   Antes se tiraban los dados por CADA abeja en CADA chequeo. Con doce
+   abejas eso son doce tiros cada veinte segundos, y a la misma le tocaba
+   tres veces en un rato.
+
+   Ahora hay un cupo por día: se enferman como mucho PLAGAS_POR_DIA abejas,
+   y nunca las mismas que ayer. Así todos los días hay algo que atender,
+   pero le toca a abejas distintas y el jugador no tiene que vivir pendiente.
+
+   El reparto se estira a lo largo del día solo: la probabilidad de cada
+   chequeo es "lo que falta" dividido "los chequeos que quedan hasta que
+   termine el día". No se amontonan al principio ni quedan todas al final. */
+let diaPlaga = -1, plagasHoy = 0, tocadasHoy = [], tocadasAyer = [];
+
 setInterval(() => {
-  const t = ahora(), dt = Math.max(0, t - ultimaPlaga);
-  ultimaPlaga = t;
-  const vivas = S.panales.filter(b => b && !b.plaga && !ABEJAS[b.tipo].inmune && b.comeHasta > t);
-  const prob = dt / (PLAGA_CADA * DIA);
-  vivas.forEach(b => {
-    if(Math.random() < prob){
-      b.plaga = true;
-      avisar('¡Plaga en un panal! Usá humo');
-      refrescar();
-    }
-  });
+  const t = ahora();
+  const hoy = Math.floor(t / DIA);
+
+  if(hoy !== diaPlaga){
+    diaPlaga = hoy;
+    plagasHoy = 0;
+    tocadasAyer = tocadasHoy;   // las de ayer quedan a salvo hoy
+    tocadasHoy = [];
+  }
+  if(plagasHoy >= PLAGAS_POR_DIA) return;
+
+  const cand = [];
+  S.panales.forEach(par => par.forEach(b => {
+    if(!b || b.plaga || ABEJAS[b.tipo].inmune) return;
+    if(b.comeHasta <= t) return;                  // a la que no come, no se le suma
+    if(tocadasAyer.includes(b.id)) return;        // ayer le tocó, hoy no
+    if(tocadasHoy.includes(b.id)) return;         // y nunca dos veces el mismo día
+    cand.push(b);
+  }));
+  if(!cand.length) return;
+
+  const quedaDelDia = DIA - (t % DIA);
+  const chequeos = Math.max(1, quedaDelDia / (20 * VEL));
+  const prob = (PLAGAS_POR_DIA - plagasHoy) / chequeos;
+
+  if(Math.random() < prob){
+    const b = cand[Math.floor(Math.random() * cand.length)];
+    b.plaga = true;
+    plagasHoy++;
+    tocadasHoy.push(b.id);
+    avisar(tr('avPlaga'));
+    refrescar();
+  }
 }, 20000);
 
 setInterval(() => {
