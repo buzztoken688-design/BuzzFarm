@@ -1196,7 +1196,14 @@ function cambiarIdioma(){
    MiniKit con el `data` armado a mano.
    =================================================================== */
 const APP_ID = 'app_3e9c2f5581972d797aedb86a4c34c3d4';
-const FARM   = '0xc6b19deaa179837c5111fbb342d4342c1cfcf401';
+/* Tres contratos que se hablan entre si:
+   BANCO   guarda el saldo, la reserva, el deposito, el retiro y el Ganar
+   GRANJA  las abejas, los panales, la plaga y los items
+   MAQUINA las apuestas, el consuelo y la subida
+   Para el jugador es un solo saldo: el banco es el que lo custodia. */
+const BANCO   = '0xfc9bc00d4445fea7c6c99fecd02cd4cac6337e18';
+const GRANJA  = '0x35bbf092ccca8e820413c4f1825505d67554c2bd';
+const MAQUINA = '0xde4c7e42e57d34a3d25b0f888d081ddb7248bcc7';
 const TOKEN  = '0xf9f44acea8d3f7f34ff9766cbbe5293f11b719fe';
 const RPC    = 'https://worldchain-mainnet.g.alchemy.com/public';
 const CHAIN  = 480;
@@ -1250,7 +1257,9 @@ async function firmar(lista, aviso){
   }catch(e){ avisar('No se pudo enviar'); return false; }
   finally{ ocupado = false; }
 }
-const aFarm  = (f,t,v) => ({ to: FARM,  data: dato(f,t,v) });
+const aBanco   = (f,t,v) => ({ to: BANCO,   data: dato(f,t,v) });
+const aGranja  = (f,t,v) => ({ to: GRANJA,  data: dato(f,t,v) });
+const aMaquina = (f,t,v) => ({ to: MAQUINA, data: dato(f,t,v) });
 const aToken = (f,t,v) => ({ to: TOKEN, data: dato(f,t,v) });
 
 const num = v => Number(ethers.formatUnits(v, 18));
@@ -1258,17 +1267,16 @@ const aWei = v => ethers.parseUnits(String(v || 0), 18);
 
 /* ---- traer el catálogo de abejas del contrato ---- */
 async function bajarCatalogo(){
-  const n = Number((await leer(FARM,'cantidadAbejas(address)',['address'],[TOKEN],['uint256']))[0]);
+  const n = Number((await leer(GRANJA,'cantidadAbejas(address)',['address'],[TOKEN],['uint256']))[0]);
   catalogo = [];
   for(let i = 0; i < n; i++){
-    const r = await leer(FARM,'verAbeja(address,uint256)',['address','uint256'],[TOKEN,i],
-      ['tuple(string,uint8,uint256,uint256,uint256,uint32,bool)']);
-    const t = r[0];
-    catalogo.push({ id:i, nombre:t[0], rareza:Number(t[1]), costo:num(t[2]),
-                    miel:num(t[3]), comida:num(t[4]), dias:Number(t[5]), activa:t[6] });
+    /* El contrato ya no devuelve el nombre: la pantalla tiene el suyo en
+       los tres idiomas, asi que guardarlo en cadena era trabajo doble. */
+    const r = await leer(GRANJA,'verAbeja(address,uint256)',['address','uint256'],[TOKEN,i],
+      ['uint8','uint256','uint256','uint256','uint32','bool']);
+    catalogo.push({ id:i, rareza:Number(r[0]), costo:num(r[1]), miel:num(r[2]),
+                    comida:num(r[3]), dias:Number(r[4]), activa:r[5] });
   }
-  /* El catálogo del contrato pisa la tabla que traía la maqueta, pero
-     conservando el icono y el color, que son sólo del dibujo. */
   const orden = Object.keys(ABEJAS);
   catalogo.forEach((c, i) => {
     const k = orden[i]; if(!k) return;
@@ -1288,43 +1296,51 @@ const CLAVE_DE = {};
 async function bajarEstado(){
   if(!yo) return;
   try{
-    const [wal, gr, jg, precio, gu, gan] = await Promise.all([
+    const [wal, mio, res, gj] = await Promise.all([
       leer(TOKEN,'balanceOf(address)',['address'],[yo],['uint256']),
-      leer(FARM,'granjas(address,address)',['address','address'],[TOKEN,yo],['uint8','uint256','uint256']),
-      leer(FARM,'resumen(address)',['address'],[TOKEN],
-        ['uint8','uint256','uint256','uint16','uint256','uint256']),
-      leer(FARM,'precioPanalAhora(address)',['address'],[TOKEN],['uint256']),
-      leer(FARM,'guardias(address,address)',['address','address'],[TOKEN,yo],['uint256','uint256','uint256']),
-      leer(FARM,'gananciaLista(address,address)',['address','address'],[TOKEN,yo],['uint256'])
+      leer(BANCO,'miEstado(address,address)',['address','address'],[TOKEN,yo],
+        ['uint256','uint256','uint256']),
+      leer(BANCO,'resumen(address)',['address'],[TOKEN],
+        ['uint8','bool','bool','uint256','uint256','uint16']),
+      leer(GRANJA,'resumen(address)',['address'],[TOKEN],
+        ['uint256','uint256','uint256','uint256'])
     ]);
 
     S.enWallet = num(wal[0]);
-    S.abiertos = Number(gr[0]);
-    S.miel     = num(gr[1]);
-    S.buzz     = num(gr[2]);
-    S.reserva  = num(jg[1]);
-    S.quemaBP  = Number(jg[3]);
-    S.guardado = num(gu[0]);
-    S.ganado   = num(gan[0]);
-    PRECIO_PANAL = num(precio[0]);
+    S.buzz     = num(mio[0]);
+    S.guardado = num(mio[1]);
+    S.ganado   = num(mio[2]);
+    S.reserva  = num(res[3]);
+    S.quemaBP  = Number(res[5]);
+    PRECIO_PANAL = num(gj[1]);
 
-    const ahora = Math.floor(Date.now()/1000);
+    const [ab, mi] = await Promise.all([
+      leer(GRANJA,'abiertos(address,address)',['address','address'],[TOKEN,yo],['uint8']),
+      leer(GRANJA,'mielDe(address,address)',['address','address'],[TOKEN,yo],['uint256'])
+    ]);
+    S.abiertos = Number(ab[0]);
+    S.miel     = num(mi[0]);
+
     for(let i = 0; i < 6; i++){
       for(let k = 0; k < POR_PANAL; k++){
         const lugar = i * POR_PANAL + k;
-        const p = await leer(FARM,'puestas(address,address,uint8)',['address','address','uint8'],
-          [TOKEN, yo, lugar], ['uint16','uint64','uint64','uint64','uint256']);
+        const p = await leer(GRANJA,'puestas(address,address,uint8)',['address','address','uint8'],
+          [TOKEN, yo, lugar],
+          ['uint16','uint64','uint64','uint64','uint64','uint64','uint16','uint32','uint256']);
         const tipo = Number(p[0]) - 1;
         if(tipo < 0){ S.panales[i][k] = null; continue; }
-        const m = await leer(FARM,'mielLista(address,address,uint8)',['address','address','uint8'],
-          [TOKEN, yo, lugar], ['uint256']);
+        const [m, pl] = await Promise.all([
+          leer(GRANJA,'mielLista(address,address,uint8)',['address','address','uint8'],[TOKEN,yo,lugar],['uint256']),
+          leer(GRANJA,'tienePlaga(address,address,uint8)',['address','address','uint8'],[TOKEN,yo,lugar],['bool'])
+        ]);
         S.panales[i][k] = {
           tipo: CLAVE_DE[tipo] || 'obrera',
           lugar,
           muereEn:   Number(p[1]) * 1000,
           comeHasta: Number(p[2]) * 1000,
           miel: num(m[0]),
-          plaga: false, polen: false, id: lugar + 1
+          plaga: pl[0],
+          polen: false, id: lugar + 1
         };
       }
     }
@@ -1719,7 +1735,7 @@ function filaAbeja(t, nota, fn, txt){
 async function abrirPanal(){
   if(S.buzz < PRECIO_PANAL){ avisar(tr('avFaltaBuzz')); return; }
   cerrar('panal');
-  await firmar([aFarm('abrirPanal(address)', ['address'], [TOKEN])],
+  await firmar([aGranja('abrirPanal(address)', ['address'], [TOKEN])],
     tr('avPanalAbierto', S.abiertos + 1, red2(PRECIO_PANAL)));
 }
 
@@ -1741,13 +1757,16 @@ function poner(t){
 async function alimentar(k){
   const b = S.panales[elegido][k]; if(!b) return;
   cerrar('panal');
-  await firmar([aFarm('alimentar(address,uint8,uint32)', ['address','uint8','uint32'],
+  await firmar([aGranja('alimentar(address,uint8,uint32)', ['address','uint8','uint32'],
     [TOKEN, b.lugar, 3])], tr('avComio', 3, ''));
 }
 
-function polen(k){
-  const b = S.panales[elegido][k];
-  if(!b || b.polen || S.insumos.polen <= 0) return;
+async function polen(k){
+  const b = S.panales[elegido][k]; if(!b) return;
+  cerrar('panal');
+  await firmar([aGranja('usarItem(address,uint256,uint8)', ['address','uint256','uint8'],
+    [TOKEN, ITEM_DE.polen, b.lugar])], '+' + Math.round(ABEJAS[b.tipo].miel) + ' miel');
+  return;
   const a = ABEJAS[b.tipo];
   S.insumos.polen--; b.polen = true;
   b.miel = Math.min(a.tope, b.miel + a.miel * 1);
@@ -1755,9 +1774,12 @@ function polen(k){
   avisar('+' + Math.round(a.miel * 1) + ' miel');
 }
 
-function humo(k){
-  const b = S.panales[elegido][k];
-  if(!b || !b.plaga || S.insumos.humo <= 0) return;
+async function humo(k){
+  const b = S.panales[elegido][k]; if(!b) return;
+  cerrar('panal');
+  await firmar([aGranja('usarItem(address,uint256,uint8)', ['address','uint256','uint8'],
+    [TOKEN, ITEM_DE.humo, b.lugar])], tr('avHumo'));
+  return;
   S.insumos.humo--; b.plaga = false;
   tocar(elegido); refrescar();
   avisar(tr('avHumo'));
@@ -1771,7 +1793,7 @@ async function cosechar(k){
 async function cosecharTodo(){
   const hay = S.panales.some(par => par.some(b => b && b.miel >= 1));
   if(!hay){ avisar(tr('avNadaCosechar')); return; }
-  await firmar([aFarm('cosechar(address)', ['address'], [TOKEN])], tr('avCosechado', ''));
+  await firmar([aGranja('cosechar(address)', ['address'], [TOKEN])], tr('avCosechado', ''));
 }
 
 function verTienda(cual){
@@ -1817,7 +1839,7 @@ async function comprarAbeja(t){
   const lugar = primerLugarLibre();
   if(lugar < 0){ avisar(tr('sinLugar')); return; }
   if(S.buzz < a.costo){ avisar(tr('avFaltaBuzz')); return; }
-  await firmar([aFarm('ponerAbeja(address,uint256,uint8)', ['address','uint256','uint8'],
+  await firmar([aGranja('ponerAbeja(address,uint256,uint8)', ['address','uint256','uint8'],
     [TOKEN, a.idCadena, lugar])], tr('avComprada', a.nom, red2(a.costo)));
 }
 
@@ -1828,7 +1850,14 @@ function primerLugarLibre(){
       if(!S.panales[i][k]) return i * POR_PANAL + k;
   return -1;
 }
-function comprarInsumo(t){
+/* El polen es el item 0 y el humo el 1, en el orden en que se cargaron. */
+const ITEM_DE = { polen:0, humo:1 };
+
+async function comprarInsumo(t){
+  await firmar([aGranja('comprarItem(address,uint256,uint256)', ['address','uint256','uint256'],
+    [TOKEN, ITEM_DE[t], 1])], tr('avComprada', INSUMOS[t].nom, red2(INSUMOS[t].costo)));
+}
+function comprarInsumoViejo(t){
   const a = INSUMOS[t];
   if(S.buzz < a.costo) return;
   S.buzz -= a.costo; S.insumos[t]++;
@@ -1866,7 +1895,7 @@ function verMercado(){
 
 async function cambiarMiel(){
   if(S.miel < MIEL_POR_BUZZ){ avisar(tr('avFaltaMiel')); return; }
-  await firmar([aFarm('cambiarMiel(address)', ['address'], [TOKEN])],
+  await firmar([aGranja('cambiarMiel(address)', ['address'], [TOKEN])],
     tr('avCambiaste', Math.floor(S.miel), red2(S.miel / MIEL_POR_BUZZ)));
 }
 
@@ -1875,7 +1904,7 @@ async function cambiarMiel(){
    de circulación. */
 async function retirar(){
   if(S.buzz < 1){ avisar(tr('avSinSaldo')); return; }
-  await firmar([aFarm('retirar(address,uint256)', ['address','uint256'], [TOKEN, 0n])],
+  await firmar([aBanco('retirar(address,uint256)', ['address','uint256'], [TOKEN, 0n])],
     tr('avRetiraste', red2(S.buzz * (1 - S.quemaBP/10000)), red2(S.buzz * S.quemaBP/10000)));
 }
 
@@ -2159,8 +2188,8 @@ async function depositar(){
   if(S.enWallet < v){ avisar(tr('avFaltaWallet')); return; }
   document.getElementById('inDepositar').value = '';
   await firmar([
-    aToken('approve(address,uint256)', ['address','uint256'], [FARM, aWei(v)]),
-    aFarm('depositar(address,uint256)', ['address','uint256'], [TOKEN, aWei(v)])
+    aToken('approve(address,uint256)', ['address','uint256'], [BANCO, aWei(v)]),
+    aBanco('depositar(address,uint256)', ['address','uint256'], [TOKEN, aWei(v)])
   ], tr('avDepositaste', red2(v)));
 }
 
@@ -2168,17 +2197,17 @@ async function guardarBuzz(){
   const v = parseFloat(document.getElementById('inputGuardar').value);
   if(!(v > 0) || S.buzz < v){ avisar(tr('avFaltaBuzz')); return; }
   document.getElementById('inputGuardar').value = '';
-  await firmar([aFarm('guardar(address,uint256)', ['address','uint256'], [TOKEN, aWei(v)])],
+  await firmar([aBanco('guardar(address,uint256)', ['address','uint256'], [TOKEN, aWei(v)])],
     tr('avGuardaste', red2(v)));
 }
 async function sacarGuardado(){
   if(S.guardado <= 0){ avisar(tr('sinGuardado')); return; }
-  await firmar([aFarm('desguardar(address,uint256)', ['address','uint256'], [TOKEN, 0n])],
+  await firmar([aBanco('desguardar(address,uint256)', ['address','uint256'], [TOKEN, 0n])],
     tr('avSacaste', red2(S.guardado)));
 }
 async function cobrarGanado(){
   if(S.ganado <= 0){ avisar(tr('sinGanado')); return; }
-  await firmar([aFarm('cobrarGanancia(address)', ['address'], [TOKEN])],
+  await firmar([aBanco('cobrarGanancia(address)', ['address'], [TOKEN])],
     tr('avCobrado', red2(S.ganado)));
 }
 function verGanar(){
@@ -2307,10 +2336,10 @@ async function girarSlot(){
   document.getElementById('resuSlot').textContent = tr('girando');
 
   const llamadas = [];
-  if(hayPendiente) llamadas.push(aFarm('girar(address)', ['address'], [TOKEN]));
+  if(hayPendiente) llamadas.push(aMaquina('girar(address)', ['address'], [TOKEN]));
   SIMB.forEach((s, i) => {
     if(apuestas[s.id] > 0)
-      llamadas.push(aFarm('apostar(address,uint8,uint256)', ['address','uint8','uint256'],
+      llamadas.push(aMaquina('apostar(address,uint8,uint256)', ['address','uint8','uint256'],
         [TOKEN, i, aWei(apuestas[s.id])]));
   });
 
@@ -2325,6 +2354,12 @@ async function girarSlot(){
     const r = await leerUltimoGiro();
     if(r !== null) await mostrarGiro(r);
     else document.getElementById('resuSlot').textContent = tr('sinResultado');
+    /* El premio no se acredita solo: queda esperando en el contrato para que
+       el jugador decida. Aca se cobra de una, que es lo que espera ver. */
+    if(ultimoPremio > 0){
+      await firmar([aMaquina('cobrarPremio(address)', ['address'], [TOKEN])],
+        tr('avCobraste', red2(ultimoPremio)));
+    }
   }else{
     document.getElementById('resuSlot').textContent = tr('primeraTirada');
   }
@@ -2338,7 +2373,7 @@ async function girarSlot(){
 /** Busca en los últimos bloques el evento Girado con tu dirección. */
 async function leerUltimoGiro(){
   try{
-    const tema = ethers.id('Girado(address,address,uint8,uint256)');
+    const tema = ethers.id('Girado(address,address,uint8,uint256,bool)');
     const relleno = a => '0x' + '0'.repeat(24) + a.slice(2).toLowerCase();
     const r = await fetch(RPC, {method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({jsonrpc:'2.0', id:1, method:'eth_getLogs',
@@ -2347,7 +2382,7 @@ async function leerUltimoGiro(){
     const j = await r.json();
     if(!j.result || !j.result.length) return null;
     const ult = j.result[j.result.length - 1];
-    const d = ethers.AbiCoder.defaultAbiCoder().decode(['uint8','uint256'], ult.data);
+    const d = ethers.AbiCoder.defaultAbiCoder().decode(['uint8','uint256','bool'], ult.data);
     ultimoPremio = Number(ethers.formatUnits(d[1], 18));
     return Number(d[0]);
   }catch(e){ return null; }
