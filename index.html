@@ -766,6 +766,7 @@ const ICO = {
    =================================================================== */
 const TEXTOS = {
   es: {
+    avVencida:'La apuesta anterior venció · te devolvemos lo apostado',
     abSuprema:'Suprema',
     avPolen:'+70 miel',
     apuestaPuesta:'Apuesta puesta · girá de nuevo para ver el resultado',
@@ -904,6 +905,7 @@ const TEXTOS = {
   },
 
   en: {
+    avVencida:'Your previous bet expired · we are returning your stake',
     abSuprema:'Supreme',
     avPolen:'+70 honey',
     apuestaPuesta:'Bet placed · spin again to see the result',
@@ -1042,6 +1044,7 @@ const TEXTOS = {
   },
 
   pt: {
+    avVencida:'A aposta anterior venceu · devolvemos o que apostou',
     abSuprema:'Suprema',
     avPolen:'+70 mel',
     mochilaComo:'Os insumos se compram na Loja e se usam tocando numa abelha no seu favo.',
@@ -1219,7 +1222,7 @@ const APP_ID = 'app_3e9c2f5581972d797aedb86a4c34c3d4';
    Para el jugador es un solo saldo: el banco es el que lo custodia. */
 const BANCO   = '0xfc9bc00d4445fea7c6c99fecd02cd4cac6337e18';
 const GRANJA  = '0x35bbf092ccca8e820413c4f1825505d67554c2bd';
-const MAQUINA = '0xde4c7e42e57d34a3d25b0f888d081ddb7248bcc7';
+const MAQUINA = '0x31596754040614e8cee439dfe1940751ebd200b1';
 const TOKEN  = '0xf9f44acea8d3f7f34ff9766cbbe5293f11b719fe';
 const RPC    = 'https://worldchain-mainnet.g.alchemy.com/public';
 const CHAIN  = 480;
@@ -2399,12 +2402,14 @@ const dormir = ms => new Promise(r => setTimeout(r, ms));
    "ya tenes una apuesta sin girar". */
 let ultimoPremio = 0;
 
-async function hayApuestaAbierta(){
+async function estadoMaquina(){
   try{
-    const a = await leer(MAQUINA,'apuestas(address,address)',['address','address'],[TOKEN,yo],
-      ['uint64','uint256','uint8','bool','bool']);
-    return !!(a && a[3]);
-  }catch(e){ return false; }
+    const m = await leer(MAQUINA,'miEstado(address,address)',['address','address'],[TOKEN,yo],
+      ['bool','uint8','uint256','bool','bool','uint256','uint8','uint8']);
+    return { abierta:m[0], simbolo:Number(m[1]), apuesta:num(m[2]),
+             puedeGirar:m[3], vencida:m[4], premio:num(m[5]),
+             subidas:Number(m[6]), gratis:Number(m[7]) };
+  }catch(e){ return { abierta:false, puedeGirar:false, vencida:false, premio:0, gratis:0 }; }
 }
 
 async function girarSlot(){
@@ -2416,7 +2421,12 @@ async function girarSlot(){
   girando = true;
   document.getElementById('resuSlot').textContent = tr('girando');
 
-  const hayPendiente = await hayApuestaAbierta();
+  /* El contrato dice si hay apuesta abierta y si todavia se puede girar.
+     Si vencio, no se manda girar: el propio apostar la limpia y devuelve
+     lo apostado. */
+  const est = await estadoMaquina();
+  const hayPendiente = est.abierta && est.puedeGirar;
+  if(est.abierta && est.vencida) avisar(tr('avVencida'));
   const llamadas = [];
   if(hayPendiente) llamadas.push(aMaquina('girar(address)', ['address'], [TOKEN]));
   SIMB.forEach((s, i) => {
@@ -2623,10 +2633,10 @@ async function verSuerte(){
   /* Puede haber quedado un premio sin cobrar de una sesion anterior. */
   try{
     const m = await leer(MAQUINA,'miEstado(address,address)',['address','address'],[TOKEN,yo],
-      ['bool','uint8','uint256','bool','uint256','uint8','uint8']);
-    if(m && num(m[4]) > 0){
+      ['bool','uint8','uint256','bool','bool','uint256','uint8','uint8']);
+    if(m && num(m[5]) > 0){
       await firmar([aMaquina('cobrarPremio(address)', ['address'], [TOKEN])],
-        tr('avCobraste', red2(num(m[4]))));
+        tr('avCobraste', red2(num(m[5]))));
     }
   }catch(e){}
   if(!marco.length) barajarMarco();
