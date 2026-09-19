@@ -513,13 +513,32 @@ body{
 }
 .hoja input::placeholder{color:#9A7A52;}
 .hoja input:focus{outline:none; border-color:var(--miel);}
-#fiesta{position:absolute; inset:0; pointer-events:none; overflow:hidden;}
-.moneda{position:absolute; top:-40px; width:28px; height:28px;
-  animation:caer 2.2s ease-in forwards;}
-@keyframes caer{
-  to{ transform:translateY(120%) rotate(540deg); opacity:0; }
+/* Va por encima de las otras hojas: todas comparten la misma capa y la
+   de la maquina esta despues en el documento, asi que la tapaba. */
+#hGane{z-index:120;}
+
+/* La serpentina cae sobre TODA la pantalla, no dentro de la tarjeta, que
+   es lo que se siente como una celebracion de verdad. */
+#serpentina{
+  position:fixed; inset:0; z-index:400; pointer-events:none; overflow:hidden;
+  display:none;
 }
-#hGane .caja{position:relative; overflow:hidden;}
+#serpentina.on{display:block;}
+#serpentina i{
+  position:absolute; top:-30px; width:9px; height:18px; border-radius:2px;
+  animation:papelito linear forwards;
+}
+@keyframes papelito{
+  0%   { transform:translateY(0) rotate(0deg) scaleX(1); opacity:1; }
+  100% { transform:translateY(105vh) rotate(760deg) scaleX(.2); opacity:.9; }
+}
+#ganeTit{animation:golpe .5s cubic-bezier(.2,1.6,.4,1);}
+#ganeMonto{animation:golpe .6s .08s backwards cubic-bezier(.2,1.6,.4,1);}
+@keyframes golpe{
+  0%{ transform:scale(.3); opacity:0; }
+  100%{ transform:scale(1); opacity:1; }
+}
+#hGane .caja{position:relative;}
 .fila4{display:flex; gap:7px; margin-top:9px;}
 .fila4 .acc{flex:1; padding:13px 0; font-size:15px; border-radius:12px;}
 .resu{min-height:19px; font-size:12.5px; font-weight:800; margin:2px 0 10px;}
@@ -658,7 +677,6 @@ body{
 <div class="hoja" id="hGane">
   <div class="caja" style="text-align:center">
     <div class="tira"></div>
-    <div id="fiesta"></div>
     <h2 id="ganeTit" style="font-size:26px; color:var(--miel)"></h2>
     <div id="ganeMonto" style="font-size:40px; font-weight:800; color:var(--verde); margin:6px 0 2px"></div>
     <p class="sub" id="ganeSub"></p>
@@ -716,6 +734,7 @@ body{
 </div>
 
 <div id="aviso"></div>
+<div id="serpentina"></div>
 
 </div>
 
@@ -2461,13 +2480,30 @@ function abrirSubida(monto, van){
   document.getElementById('hGane').classList.add('on');
 }
 
-/* Unas monedas cayendo, para que se note que gano. */
+/* Serpentina cayendo por toda la pantalla. Los papelitos salen de colores
+   y tamanos distintos y caen a distinta velocidad, que es lo que hace que
+   parezca de verdad y no una grilla. */
+const COLORES = ['#FFC107','#FF6B5C','#3DDC84','#4FC3F7','#B47CFF','#FFF8E7','#FF8F00'];
+let tSerp;
 function lluvia(){
-  const f = document.getElementById('fiesta');
-  f.innerHTML = Array.from({length:14}, (_, i) =>
-    '<img class="moneda" src="' + ICO.buzz + '" alt="" style="left:' +
-    (5 + i * 6.7) + '%; animation-delay:' + (i * 90) + 'ms">').join('');
-  setTimeout(() => { f.innerHTML = ''; }, 2600);
+  const s = document.getElementById('serpentina');
+  const papeles = [];
+  for(let i = 0; i < 70; i++){
+    const izq = Math.random() * 100;
+    const dur = 2.2 + Math.random() * 2;
+    const esp = Math.random() * 1.4;
+    const col = COLORES[Math.floor(Math.random() * COLORES.length)];
+    const anc = 6 + Math.random() * 7;
+    const alt = 10 + Math.random() * 14;
+    papeles.push('<i style="left:' + izq.toFixed(1) + '%; background:' + col +
+      '; width:' + anc.toFixed(0) + 'px; height:' + alt.toFixed(0) + 'px' +
+      '; animation-duration:' + dur.toFixed(2) + 's' +
+      '; animation-delay:' + esp.toFixed(2) + 's"></i>');
+  }
+  s.innerHTML = papeles.join('');
+  s.classList.add('on');
+  clearTimeout(tSerp);
+  tSerp = setTimeout(() => { s.classList.remove('on'); s.innerHTML = ''; }, 5200);
 }
 
 async function subirPremio(){
@@ -2591,7 +2627,14 @@ async function calcularGiro(){
       if(casilla < acum){ salio = i; break; }
     }
     // cuanto paga, para mostrarlo
-    ultimoPremio = (salio === Number(a[2])) ? num(a[1]) * SIMB[salio].x : 0;
+    /* El contrato afina el pago con pagoBP; si no se toco, es la tabla
+       tal cual. Se lee para no mostrar un numero distinto al que paga. */
+    let pg = 10000;
+    try{
+      const q = await leer(MAQUINA,'pagoBP(address)',['address'],[TOKEN],['uint16']);
+      if(q && Number(q[0]) > 0) pg = Number(q[0]);
+    }catch(e){}
+    ultimoPremio = (salio === Number(a[2])) ? num(a[1]) * SIMB[salio].x * pg / 10000 : 0;
     return salio;
   }catch(e){ return null; }
 }
