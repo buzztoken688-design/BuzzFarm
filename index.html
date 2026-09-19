@@ -546,7 +546,10 @@ body{
     </div>
     <div class="recursos">
       <div class="tarjeta"><img data-ico="buzz" alt=""><div><div class="val" id="vBuzz">0</div><div class="nom">BUZZ</div></div></div>
-      <div class="tarjeta"><img data-ico="miel" alt=""><div><div class="val" id="vMiel">0</div><div class="nom">MIEL</div></div></div>
+      <div class="tarjeta"><img data-ico="buzz" alt="">
+      <div><div class="val" id="vWallet">0</div><div class="nom" data-t="enWallet"></div></div>
+    </div>
+    <div class="tarjeta"><img data-ico="miel" alt=""><div><div class="val" id="vMiel">0</div><div class="nom">MIEL</div></div></div>
       </div>
     </div>
   </div>
@@ -1347,7 +1350,9 @@ async function bajarEstado(){
     refrescar();
   }catch(e){ avisar('No se pudo leer la cadena'); }
 }
-let PRECIO_PANAL = 0;
+/* Si la lectura todavia no llego, se muestra el precio configurado en vez
+   de un cero que confunde. El cobro real siempre lo hace el contrato. */
+let PRECIO_PANAL = 1000;
 
 const red = n => Math.round(n*10)/10;
 const red2 = n => Math.round(n*100)/100;
@@ -1454,7 +1459,10 @@ const PANALES = [
   {wld:0}, {wld:VALOR_PANAL}, {wld:VALOR_PANAL},
   {wld:VALOR_PANAL}, {wld:VALOR_PANAL}, {wld:VALOR_PANAL}
 ];
-const costoPanal = i => enBuzz(PANALES[i].wld);
+/* El precio lo dice la granja: todos los panales valen lo mismo y el
+   contrato ya hizo la cuenta. Antes esto lo calculaba la pantalla por su
+   cuenta y mostraba un numero que no era el que se iba a cobrar. */
+const costoPanal = () => PRECIO_PANAL;
 const entra = () => true;
 
 // posición de cada panal sobre la imagen del campo, en % del lienzo
@@ -1567,7 +1575,7 @@ function pintarParcelas(){
       p.dataset.firma = firma;
       if(i >= S.abiertos){
         p.innerHTML = '<div class="candado"><div><div class="llave">🔒</div>' +
-          '<div class="precio">' + costoPanal(i) + ' BUZZ</div></div></div>';
+          '<div class="precio">' + costoPanal() + ' BUZZ</div></div></div>';
       }else if(vivas.length === 0){
         p.innerHTML = '<span class="mas">+</span>';
       }else{
@@ -1630,6 +1638,8 @@ function pintarParcelas(){
 
 function pintarNumeros(){
   vBuzz.textContent = red(S.buzz);
+  const w = document.getElementById('vWallet');
+  if(w) w.textContent = red2(S.enWallet);
   vMiel.textContent = Math.floor(S.miel);
 }
 function refrescar(){ pintarNumeros(); pintarParcelas(); }
@@ -1646,10 +1656,10 @@ function tocar(i){
     const p = PANALES[i], puede = i === S.abiertos;
     caja.innerHTML = '<div class="tira"></div><h2>' + tr('panalCerrado') + '</h2>' +
       '<p class="sub">' + (puede ? tr('panalAbriloLibre') : tr('panalAnterior')) + '</p>' +
-      '<div class="dato"><span>' + tr('cuesta') + '</span><b>' + costoPanal(i) + ' BUZZ</b></div>' +
+      '<div class="dato"><span>' + tr('cuesta') + '</span><b>' + costoPanal() + ' BUZZ</b></div>' +
       '<div class="dato"><span>' + tr('tenesTotal') + '</span><b>' + red(S.buzz) + ' BUZZ</b></div>' +
       '<button class="grande" onclick="abrirPanal()"' +
-        (puede && S.buzz >= costoPanal(i) ? '' : ' disabled') + '>' + tr('abrirPor', costoPanal(i)) + '</button>' +
+        (puede && S.buzz >= costoPanal() ? '' : ' disabled') + '>' + tr('abrirPor', costoPanal()) + '</button>' +
       '<button class="grande gris" onclick="cerrar(\'panal\')">' + tr('cerrar') + '</button>';
     abrir('panal'); return;
   }
@@ -1911,17 +1921,27 @@ async function retirar(){
 // ---- hojas ----
 const HOJAS = {tienda:'hTienda', mochila:'hMochila', mercado:'hMercado',
                ganar:'hGanar', suerte:'hSuerte', panal:'hPanal'};
+/* La hoja se muestra PRIMERO y despues se pinta. Antes era al reves: si
+   el pintado se rompia, la pantalla nunca aparecia y parecia que el boton
+   no andaba. Ahora un error al pintar deja la hoja abierta con lo que
+   habia, en vez de tragarse el toque. */
 function abrir(c){
-  if(c === 'tienda')  verTienda(pestana);
-  if(c === 'mochila') verMochila();
-  if(c === 'mercado') verMercado();
-  if(c === 'ganar')   verGanar();
-  if(c === 'suerte')  verSuerte();
-  document.getElementById(HOJAS[c]).classList.add('on');
+  const hoja = document.getElementById(HOJAS[c]);
+  if(!hoja) return;
+  hoja.classList.add('on');
+  try{
+    if(c === 'tienda')  verTienda(pestana);
+    if(c === 'mochila') verMochila();
+    if(c === 'mercado') verMercado();
+    if(c === 'ganar')   verGanar();
+    if(c === 'suerte')  verSuerte();
+  }catch(e){
+    avisar('No se pudo cargar esta pantalla');
+  }
 }
 function cerrar(c){
-  if(c === 'suerte' && typeof pendiente !== 'undefined' && pendiente > 0) cobrar();
-  document.getElementById(HOJAS[c]).classList.remove('on');
+  const hoja = document.getElementById(HOJAS[c]);
+  if(hoja) hoja.classList.remove('on');
 }
 function irA(btn, cual){
   document.querySelectorAll('.tablon').forEach(t => t.classList.remove('on'));
