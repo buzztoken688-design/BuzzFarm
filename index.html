@@ -513,6 +513,13 @@ body{
 }
 .hoja input::placeholder{color:#9A7A52;}
 .hoja input:focus{outline:none; border-color:var(--miel);}
+#fiesta{position:absolute; inset:0; pointer-events:none; overflow:hidden;}
+.moneda{position:absolute; top:-40px; width:28px; height:28px;
+  animation:caer 2.2s ease-in forwards;}
+@keyframes caer{
+  to{ transform:translateY(120%) rotate(540deg); opacity:0; }
+}
+#hGane .caja{position:relative; overflow:hidden;}
 .fila4{display:flex; gap:7px; margin-top:9px;}
 .fila4 .acc{flex:1; padding:13px 0; font-size:15px; border-radius:12px;}
 .resu{min-height:19px; font-size:12.5px; font-weight:800; margin:2px 0 10px;}
@@ -645,6 +652,20 @@ body{
     <button class="grande gris" id="btnSacarG" onclick="sacarGuardado()" data-t="sacarBtn"></button>
     <p class="nota" data-t="notaGanar"></p>
     <button class="grande gris" onclick="cerrar('ganar')" data-t="cerrar"></button></div>
+</div>
+
+
+<div class="hoja" id="hGane">
+  <div class="caja" style="text-align:center">
+    <div class="tira"></div>
+    <div id="fiesta"></div>
+    <h2 id="ganeTit" style="font-size:26px; color:var(--miel)"></h2>
+    <div id="ganeMonto" style="font-size:40px; font-weight:800; color:var(--verde); margin:6px 0 2px"></div>
+    <p class="sub" id="ganeSub"></p>
+    <button class="grande" id="btnSubir" onclick="subirPremio()"></button>
+    <button class="grande gris" id="btnCobrar2" onclick="cobrarPremio()"></button>
+    <p class="nota" id="ganeNota"></p>
+  </div>
 </div>
 
 <div class="hoja" id="hSuerte">
@@ -874,7 +895,6 @@ const TEXTOS = {
     girando:'Girando...', tablaPagos:'Tabla de pagos',
     consuelo:'★ GIRO DE CONSUELO · TE QUEDAN {0} HOY ★',
     ganaste:'¡Ganaste!', vanSeguidas:'¡Van {0} seguidas!',
-    subiTexto:'Elegí una. Acertás 6 de cada 10 y tu ganancia sube a ×{0}.<br>Si errás, se va todo.',
     topeSubidas:'Llegaste al tope de {0} subidas. Cobrá lo que juntaste.',
     cobrarMonto:'Cobrar {0}', aVerDonde:'A ver dónde frena...',
     acertaste:'¡Acertaste! Vas {0}', eraLaOtra:'Era la otra. Se fue todo.',
@@ -1013,7 +1033,6 @@ const TEXTOS = {
     girando:'Spinning...', tablaPagos:'Paytable',
     consuelo:'★ CONSOLATION SPIN · {0} LEFT TODAY ★',
     ganaste:'You won!', vanSeguidas:'{0} in a row!',
-    subiTexto:'Pick one. You hit 6 out of 10 and your win rises to ×{0}.<br>Miss and you lose it all.',
     topeSubidas:'You reached the cap of {0} raises. Cash out what you built.',
     cobrarMonto:'Cash out {0}', aVerDonde:'Let us see where it stops...',
     acertaste:'You got it! Now {0}', eraLaOtra:'It was the other one. All gone.',
@@ -1044,6 +1063,9 @@ const TEXTOS = {
   },
 
   pt: {
+    subirA:'Subir para {0} BUZZ',
+    subiAviso:'Se errar, perde o prêmio todo.',
+    subiTexto:'Você acerta 6 de cada 10 e o prêmio sobe para ×{0}.',
     avVencida:'A aposta anterior venceu · devolvemos o que apostou',
     abSuprema:'Suprema',
     avPolen:'+70 mel',
@@ -1154,7 +1176,6 @@ const TEXTOS = {
     girando:'Girando...', tablaPagos:'Tabela de pagamentos',
     consuelo:'★ GIRO DE CONSOLO · RESTAM {0} HOJE ★',
     ganaste:'Você ganhou!', vanSeguidas:'{0} seguidas!',
-    subiTexto:'Escolha uma. Você acerta 6 de cada 10 e o ganho sobe para ×{0}.<br>Se errar, perde tudo.',
     topeSubidas:'Você chegou ao limite de {0} subidas. Resgate o que juntou.',
     cobrarMonto:'Resgatar {0}', aVerDonde:'Vamos ver onde para...',
     acertaste:'Acertou! Agora {0}', eraLaOtra:'Era a outra. Foi tudo.',
@@ -1971,7 +1992,7 @@ async function retirar(parte){
 }
 
 // ---- hojas ----
-const HOJAS = {tienda:'hTienda', mochila:'hMochila', mercado:'hMercado',
+const HOJAS = {gane:'hGane', tienda:'hTienda', mochila:'hMochila', mercado:'hMercado',
                ganar:'hGanar', suerte:'hSuerte', panal:'hPanal'};
 /* La hoja se muestra PRIMERO y despues se pinta. Antes era al reves: si
    el pintado se rompia, la pantalla nunca aparecia y parecia que el boton
@@ -2412,6 +2433,80 @@ async function estadoMaquina(){
   }catch(e){ return { abierta:false, puedeGirar:false, vencida:false, premio:0, gratis:0 }; }
 }
 
+
+/* ---- ganar, subir o cobrar ----
+   El contrato deja el premio esperando para que el jugador decida: lo
+   cobra, o lo sube al 60% por x1,65 hasta cinco veces. Cada subida es una
+   firma, porque el resultado sale del hash del bloque siguiente y eso no
+   se puede saber antes. */
+const SUBIDAS_TOPE = 5, SUBIR_MULT = 1.65;
+let premioEsperando = 0, vanSubidas = 0;
+
+function abrirSubida(monto, van){
+  premioEsperando = monto;
+  vanSubidas = van;
+
+  document.getElementById('ganeTit').textContent =
+    van > 0 ? tr('vanSeguidas', van) : tr('ganaste');
+  document.getElementById('ganeMonto').textContent = '+' + red2(monto) + ' BUZZ';
+  document.getElementById('ganeSub').innerHTML = tr('subiTexto', SUBIR_MULT);
+  document.getElementById('btnSubir').textContent =
+    tr('subirA', red2(monto * SUBIR_MULT));
+  document.getElementById('btnCobrar2').textContent = tr('cobrarMonto', red2(monto));
+  document.getElementById('btnSubir').disabled = van >= SUBIDAS_TOPE;
+  document.getElementById('ganeNota').textContent =
+    van >= SUBIDAS_TOPE ? tr('topeSubidas', SUBIDAS_TOPE) : tr('subiAviso');
+
+  lluvia();
+  document.getElementById('hGane').classList.add('on');
+}
+
+/* Unas monedas cayendo, para que se note que gano. */
+function lluvia(){
+  const f = document.getElementById('fiesta');
+  f.innerHTML = Array.from({length:14}, (_, i) =>
+    '<img class="moneda" src="' + ICO.buzz + '" alt="" style="left:' +
+    (5 + i * 6.7) + '%; animation-delay:' + (i * 90) + 'ms">').join('');
+  setTimeout(() => { f.innerHTML = ''; }, 2600);
+}
+
+async function subirPremio(){
+  const antes = premioEsperando;
+  document.getElementById('btnSubir').disabled = true;
+  document.getElementById('btnCobrar2').disabled = true;
+  document.getElementById('ganeSub').textContent = tr('aVerDonde');
+
+  const fue = await firmar([aMaquina('subir(address)', ['address'], [TOKEN])], tr('aVerDonde'));
+  await dormir(900);
+  document.getElementById('btnCobrar2').disabled = false;
+  if(!fue){ abrirSubida(antes, vanSubidas); return; }
+
+  const e = await estadoMaquina();
+  if(e.premio > 0){
+    abrirSubida(e.premio, e.subidas);
+  }else{
+    premioEsperando = 0;
+    document.getElementById('ganeTit').textContent = tr('eraLaOtra');
+    document.getElementById('ganeMonto').textContent = '0 BUZZ';
+    document.getElementById('ganeSub').textContent = '';
+    document.getElementById('btnSubir').disabled = true;
+    document.getElementById('btnCobrar2').textContent = tr('seguirJugando');
+    document.getElementById('btnCobrar2').onclick = () => {
+      cerrar('gane');
+      document.getElementById('btnCobrar2').onclick = cobrarPremio;
+    };
+  }
+}
+
+async function cobrarPremio(){
+  if(premioEsperando <= 0){ cerrar('gane'); return; }
+  const monto = premioEsperando;
+  premioEsperando = 0;
+  cerrar('gane');
+  await firmar([aMaquina('cobrarPremio(address)', ['address'], [TOKEN])],
+    tr('avCobraste', red2(monto)));
+}
+
 async function girarSlot(){
   if(girando) return;
   const total = totalApostado();
@@ -2435,14 +2530,16 @@ async function girarSlot(){
         [TOKEN, i, aWei(apuestas[s.id])]));
   });
 
-  /* El resultado ya esta decidido por el bloque, asi que la rueda puede
-     girar mientras la firma viaja. No se adelanta nada: se muestra lo que
-     la cadena ya decidio. */
+  /* El resultado ya esta decidido por el bloque, pero la rueda NO gira
+     mientras la firma esta en pantalla: esa ventana tapa todo el juego y
+     el jugador se pierde el giro. Primero se firma, se espera a que la
+     ventana se cierre, y recien ahi arranca. */
   const anticipado = hayPendiente ? await calcularGiro() : null;
-  const animacion = anticipado !== null ? mostrarGiro(anticipado) : null;
 
   const fue = await firmar(llamadas, hayPendiente ? tr('girando') : tr('apuestaPuesta'));
-  if(animacion) await animacion;
+  await dormir(900);            // que termine de irse la ventana de la firma
+
+  if(anticipado !== null && fue) await mostrarGiro(anticipado);
 
   if(!fue){
     girando = false;
@@ -2452,12 +2549,8 @@ async function girarSlot(){
 
   if(hayPendiente){
     if(anticipado === null) document.getElementById('resuSlot').textContent = tr('sinResultado');
-    /* El premio no se acredita solo: queda esperando en el contrato para que
-       el jugador decida. Aca se cobra de una, que es lo que espera ver. */
-    if(ultimoPremio > 0){
-      await firmar([aMaquina('cobrarPremio(address)', ['address'], [TOKEN])],
-        tr('avCobraste', red2(ultimoPremio)));
-    }
+    /* Si gano, no se cobra solo: se le ofrece cobrar o subir el premio. */
+    if(ultimoPremio > 0) abrirSubida(ultimoPremio, 0);
   }else{
     document.getElementById('resuSlot').textContent = tr('primeraTirada');
   }
