@@ -513,6 +513,8 @@ body{
 }
 .hoja input::placeholder{color:#9A7A52;}
 .hoja input:focus{outline:none; border-color:var(--miel);}
+.fila4{display:flex; gap:7px; margin-top:9px;}
+.fila4 .acc{flex:1; padding:13px 0; font-size:15px; border-radius:12px;}
 .resu{min-height:19px; font-size:12.5px; font-weight:800; margin:2px 0 10px;}
 /* mientras conecta */
 #cargando{
@@ -608,7 +610,12 @@ body{
       <div class="info"><b data-t="retirarTit"></b><small id="txtQuema"></small></div>
       <div class="lado"><span class="n" id="buzzDisp">0</span></div>
     </div>
-    <button class="grande gris" id="btnRetirar" onclick="retirar()" data-t="retirarTodo"></button>
+    <div class="fila4">
+      <button class="acc gris" onclick="retirar(25)">25%</button>
+      <button class="acc gris" onclick="retirar(50)">50%</button>
+      <button class="acc gris" onclick="retirar(75)">75%</button>
+      <button class="acc gris" id="btnRetirar" onclick="retirar(100)">100%</button>
+    </div>
 
     <div class="dato" style="margin-top:12px"><span data-t="yaRetirado"></span><b id="retiradoDisp">0 BUZZ</b></div>
     <div class="dato"><span data-t="quemadoAlRetirar"></span><b id="quemadoDisp">0 BUZZ</b></div>
@@ -1929,7 +1936,7 @@ function verMercado(){
   buzzDisp.textContent = red(S.buzz) + ' BUZZ';
   document.getElementById('txtQuema').textContent =
     'Se quema ' + (QUEMA_RETIRO*100).toFixed(2).replace('.',',') + '% al retirar';
-  document.getElementById('btnRetirar').disabled = S.buzz < 1;
+  document.querySelectorAll('.fila4 .acc').forEach(b => b.disabled = S.buzz < 0.01);
   document.getElementById('mWallet').textContent = red2(S.enWallet) + ' BUZZ';
   document.getElementById('mReserva').textContent = red2(S.reserva) + ' BUZZ';
   document.getElementById('retiradoDisp').textContent = red(S.retirado) + ' BUZZ';
@@ -1945,10 +1952,19 @@ async function cambiarMiel(){
 /* El juego retiene lo ganado hasta que el jugador lo pasa a su wallet.
    Recién ahí se quema una parte: es el único momento en que sale BUZZ
    de circulación. */
-async function retirar(){
-  if(S.buzz < 1){ avisar(tr('avSinSaldo')); return; }
-  await firmar([aBanco('retirar(address,uint256)', ['address','uint256'], [TOKEN, 0n])],
-    tr('avRetiraste', red2(S.buzz * (1 - S.quemaBP/10000)), red2(S.buzz * S.quemaBP/10000)));
+/* Retira la parte que el jugador elija. Con 100 se manda cero, que para el
+   contrato significa "todo": asi no queda un resto por redondeo. */
+async function retirar(parte){
+  const pct = parte || 100;
+  if(S.buzz < 0.01){ avisar(tr('avSinSaldo')); return; }
+
+  const monto = pct >= 100 ? S.buzz : red2(S.buzz * pct / 100);
+  if(monto < 0.01){ avisar(tr('avSinSaldo')); return; }
+
+  const quema = red2(monto * S.quemaBP / 10000);
+  await firmar([aBanco('retirar(address,uint256)', ['address','uint256'],
+    [TOKEN, pct >= 100 ? 0n : aWei(monto)])],
+    tr('avRetiraste', red2(monto - quema), quema));
 }
 
 // ---- hojas ----
@@ -2377,7 +2393,19 @@ const dormir = ms => new Promise(r => setTimeout(r, ms));
 
    La rueda gira igual que siempre. La diferencia es que el número ya
    está decidido en la cadena y acá sólo se muestra dónde frena. */
-let hayPendiente = false, ultimoPremio = 0;
+/* Si la apuesta esta abierta lo dice el contrato, no una variable del
+   navegador: al recargar la app esa variable volvia a cero mientras el
+   contrato seguia con la apuesta puesta, y la siguiente firma fallaba con
+   "ya tenes una apuesta sin girar". */
+let ultimoPremio = 0;
+
+async function hayApuestaAbierta(){
+  try{
+    const a = await leer(MAQUINA,'apuestas(address,address)',['address','address'],[TOKEN,yo],
+      ['uint64','uint256','uint8','bool','bool']);
+    return !!(a && a[3]);
+  }catch(e){ return false; }
+}
 
 async function girarSlot(){
   if(girando) return;
@@ -2388,6 +2416,7 @@ async function girarSlot(){
   girando = true;
   document.getElementById('resuSlot').textContent = tr('girando');
 
+  const hayPendiente = await hayApuestaAbierta();
   const llamadas = [];
   if(hayPendiente) llamadas.push(aMaquina('girar(address)', ['address'], [TOKEN]));
   SIMB.forEach((s, i) => {
@@ -2423,7 +2452,6 @@ async function girarSlot(){
     document.getElementById('resuSlot').textContent = tr('primeraTirada');
   }
 
-  hayPendiente = true;
   girando = false;
   limpiarApuestas(true);
   bajarEstado();
@@ -2590,8 +2618,17 @@ async function elegirCarta(i){
 function cobrar(){ /* lo paga el contrato */ }
 
 // ---- la hoja ----
-function verSuerte(){
+async function verSuerte(){
   verReglas(false);
+  /* Puede haber quedado un premio sin cobrar de una sesion anterior. */
+  try{
+    const m = await leer(MAQUINA,'miEstado(address,address)',['address','address'],[TOKEN,yo],
+      ['bool','uint8','uint256','bool','uint256','uint8','uint8']);
+    if(m && num(m[4]) > 0){
+      await firmar([aMaquina('cobrarPremio(address)', ['address'], [TOKEN])],
+        tr('avCobraste', red2(num(m[4]))));
+    }
+  }catch(e){}
   if(!marco.length) barajarMarco();
   pintarMaquina();
   pintarApuestas();
