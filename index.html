@@ -152,7 +152,8 @@ body{
    encima de los botones de abajo. */
 .recursos{flex:1; display:flex; gap:6px; justify-content:flex-end; min-width:0;}
 .recursos .tarjeta{min-width:0; padding:6px 7px;}
-.recursos .val{font-size:15px;}
+.recursos .val{font-size:14px; white-space:nowrap;}
+.recursos .tarjeta img{width:22px; height:22px;}
 
 /* ---------- botonera ---------- */
 #tablones{ gap:3px;
@@ -176,23 +177,26 @@ body{
    como contenido normal: poner el texto con posicion absoluta dentro de un
    <button> se descoloca en el navegador de World App. */
 .acciones{
-  display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px;
-  margin-top:26px; position:relative; z-index:11;
+  display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:6px;
+  margin-top:8px; position:relative; z-index:11;
 }
 .btnimg{
-  height:50px; border:0; border-radius:12px; padding:0 6px 0 32%;
-  font-family:inherit; font-size:11.5px; font-weight:800; line-height:1.15;
-  color:#FFF8E7; text-shadow:0 1px 3px rgba(0,0,0,.9);
-  background-repeat:no-repeat; background-size:100% 100%;
+  min-width:0; height:52px; border:0; border-radius:12px;
+  /* a la izquierda va el dibujo: el texto ocupa solo el lado derecho */
+  padding:0 6px 0 38%;
+  font-family:inherit; font-size:10.5px; font-weight:800; line-height:1.1;
+  color:#FFF8E7; text-shadow:0 1px 2px rgba(0,0,0,.95), 0 0 4px rgba(0,0,0,.6);
+  background-repeat:no-repeat; background-size:100% 100%; background-position:center;
   display:flex; align-items:center; justify-content:center; text-align:center;
+  overflow:hidden;
+}
+.btnimg span{
+  display:block; max-width:100%;
+  white-space:normal; overflow-wrap:break-word; hyphens:auto;
 }
 .btnimg:active{transform:translateY(2px);}
 .btnimg[disabled]{filter:grayscale(.75) brightness(.75);}
-
-
-
-.btnimg:active{transform:translateY(2px);}
-.btnimg[disabled]{filter:grayscale(.75) brightness(.75);}
+@media (max-width:360px){ .btnimg{font-size:10px; height:48px;} }
 
 /* El de traer la granja es verde liso y a todo el ancho: es temporal y
    tiene que verse distinto de los tres de siempre. */
@@ -617,7 +621,6 @@ body{
       <div class="tarjeta"><img data-ico="miel" alt=""><div><div class="val" id="vMiel">0</div><div class="nom">MIEL</div></div></div>
       </div>
     </div>
-  </div>
 
   <!-- Los tres de tanda, adentro del HUD: es lo unico que se ve seguro. -->
   <div class="acciones">
@@ -793,6 +796,9 @@ const ICO = {
    =================================================================== */
 const TEXTOS = {
   es: {
+    alimentarTodas:'Alimentar todas',
+    fumigarTodas:'Fumigar todas',
+    cosecharTodo:'Cosechar todo',
     abrirGratis:'Abrir gratis',
     gratis:'GRATIS',
     avVencida:'La apuesta anterior venció · te devolvemos lo apostado',
@@ -930,6 +936,9 @@ const TEXTOS = {
   },
 
   en: {
+    alimentarTodas:'Feed all',
+    fumigarTodas:'Fumigate all',
+    cosecharTodo:'Harvest all',
     abrirGratis:'Open for free',
     gratis:'FREE',
     avVencida:'Your previous bet expired · we are returning your stake',
