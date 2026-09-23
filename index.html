@@ -165,6 +165,24 @@ body{
 .tablon img{width:27px; height:27px; object-fit:contain;}
 .tablon.on{background:rgba(255,193,7,.16); border-color:var(--tabla-borde); color:var(--miel);}
 
+/* Los dos botones de tanda, justo arriba del de cosechar. */
+.acciones{position:fixed; left:12px; right:12px; z-index:40;
+  bottom:calc(132px + env(safe-area-inset-bottom)); display:flex; gap:8px;}
+.acciones .accion2{
+  flex:1; display:flex; align-items:center; justify-content:center; gap:6px;
+  border:0; border-radius:13px; padding:11px 8px; font-family:inherit;
+  font-size:13px; font-weight:800; color:#3D1D06;
+  background:linear-gradient(#FFD54F,#FFB300); box-shadow:0 3px 0 #A85D00;
+}
+.acciones .accion2:active{transform:translateY(2px); box-shadow:0 1px 0 #A85D00;}
+.acciones .accion2 img{width:20px; height:20px; object-fit:contain;}
+#btnTraer{
+  position:fixed; left:12px; right:12px; z-index:41;
+  bottom:calc(186px + env(safe-area-inset-bottom));
+  border:0; border-radius:14px; padding:13px; font-family:inherit;
+  font-size:14px; font-weight:800; color:#0B3D22;
+  background:linear-gradient(#7CFFB3,#2FBF6B); box-shadow:0 4px 0 #1B7A42;
+}
 #cosecharTodo{
   position:absolute; right:10px; bottom:78px; z-index:10;
   display:none; align-items:center; gap:7px;
@@ -541,6 +559,17 @@ body{
 #hGane .caja{position:relative;}
 .fila4{display:flex; gap:7px; margin-top:9px;}
 .fila4 .acc{flex:1; padding:13px 0; font-size:15px; border-radius:12px;}
+.acciones{position:fixed; left:10px; right:10px; z-index:40;
+  bottom:calc(126px + env(safe-area-inset-bottom)); display:flex; gap:8px;}
+.acciones .accion2{
+  flex:1; display:flex; align-items:center; justify-content:center; gap:6px;
+  border:0; border-radius:13px; padding:11px 8px; font-family:inherit;
+  font-size:13px; font-weight:800; color:#3D1D06;
+  background:linear-gradient(#FFD54F,#FFB300); box-shadow:0 3px 0 #A85D00;
+}
+.acciones .accion2:active{transform:translateY(2px); box-shadow:0 1px 0 #A85D00;}
+.acciones .accion2 img{width:20px; height:20px; object-fit:contain;}
+#btnTraer{background:linear-gradient(#7CFFB3,#2FBF6B); box-shadow:0 4px 0 #1B7A42;}
 .resu{min-height:19px; font-size:12.5px; font-weight:800; margin:2px 0 10px;}
 /* mientras conecta */
 #cargando{
@@ -588,6 +617,13 @@ body{
   </div>
 </div>
 
+<div class="acciones">
+  <button class="accion2" onclick="alimentarTodas()">
+    <img data-ico="polen" alt=""><span data-t="alimentarTodas"></span></button>
+  <button class="accion2" onclick="fumigarTodas()">
+    <img data-ico="humo" alt=""><span data-t="fumigarTodas"></span></button>
+</div>
+<button id="btnTraer" onclick="traerGranja()" style="display:none"><span data-t="traerGranja"></span></button>
 <button id="cosecharTodo" onclick="cosecharTodo()">
   <img data-ico="miel" alt=""><span id="txtCosechar" data-t="cosecharTodo"></span>
 </button>
@@ -598,7 +634,6 @@ body{
   <button class="tablon" onclick="irA(this,'mochila')"><img data-ico="mochila" alt=""><span data-t="navMochila">Mochila</span></button>
   <button class="tablon" onclick="irA(this,'mercado')"><img data-ico="mercado" alt=""><span data-t="navMercado">Mercado</span></button>
   <button class="tablon" onclick="irA(this,'ganar')"><img data-ico="buzz" alt=""><span data-t="navGanar">Ganar</span></button>
-  <button class="tablon" onclick="irA(this,'suerte')"><img data-ico="trofeo" alt=""><span data-t="navSuerte">Suerte</span></button>
 </div>
 
 <div class="hoja" id="hTienda" onclick="if(event.target===this) cerrar('tienda')">
@@ -674,60 +709,9 @@ body{
 </div>
 
 
-<div class="hoja" id="hGane">
-  <div class="caja" style="text-align:center">
-    <div class="tira"></div>
-    <h2 id="ganeTit" style="font-size:26px; color:var(--miel)"></h2>
-    <div id="ganeMonto" style="font-size:40px; font-weight:800; color:var(--verde); margin:6px 0 2px"></div>
-    <p class="sub" id="ganeSub"></p>
-    <button class="grande" id="btnSubir" onclick="subirPremio()"></button>
-    <button class="grande gris" id="btnCobrar2" onclick="cobrarPremio()"></button>
-    <p class="nota" id="ganeNota"></p>
-  </div>
-</div>
 
-<div class="hoja" id="hSuerte">
-  <div class="caja" style="position:relative">
 
-    <div class="cabezal">
-      <h2 data-t="maquina">LA MÁQUINA</h2>
-      <span class="saldo"><img data-ico="buzz" alt=""><span id="saldoNec">0</span></span>
-      <button class="ayuda" onclick="verReglas(true)">?</button>
-    </div>
 
-    <div class="marco"><div class="maquina" id="maquina"></div></div>
-    <div class="cartel" data-t="cartelMaquina"></div>
-
-    <div class="fichasFila" id="fichas"></div>
-    <div class="apostador" id="apostador"></div>
-    <div class="gratisBadge" id="badgeGratis">★ GIRO GRATIS DE LA CASA ★</div>
-    <div class="estado" id="resuSlot" data-t="tocaSimbolo"></div>
-
-    <button class="girar" id="btnSlot" onclick="girarSlot()">Poné una apuesta</button>
-    <div class="pie">
-      <button class="chico" id="btnLimpiar" onclick="limpiarApuestas()" data-t="sacarApuestas"></button>
-      <button class="chico" onclick="cerrar('suerte')" data-t="volverColmena"></button>
-    </div>
-
-    <div class="doblar" id="doblar">
-      <h3 id="doblarTit">¡Ganaste!</h3>
-      <div class="monto" id="doblarMonto">0</div>
-      <p id="doblarTxt">Elegí una. Acertás 6 de cada 10 y tu ganancia sube a ×1,65.<br>Si errás, se va todo.</p>
-      <div class="dosCartas">
-        <button class="carta" id="cartaA" onclick="elegirCarta(0)"></button>
-        <button class="carta" id="cartaB" onclick="elegirCarta(1)"></button>
-      </div>
-      <button class="girar" style="max-width:320px" id="btnCobrar" onclick="cobrar()">Cobrar</button>
-    </div>
-
-    <div class="reglas" id="reglas">
-      <h3 data-t="tablaPagos"></h3>
-      <div id="tablaReglas"></div>
-      <button class="chico" onclick="verReglas(false)" data-t="cerrar"></button>
-    </div>
-
-  </div>
-</div>
 
 <div class="hoja" id="hPanal" onclick="if(event.target===this) cerrar('panal')">
   <div class="caja" id="cajaPanal"></div>
@@ -806,6 +790,8 @@ const ICO = {
    =================================================================== */
 const TEXTOS = {
   es: {
+    abrirGratis:'Abrir gratis',
+    gratis:'GRATIS',
     avVencida:'La apuesta anterior venció · te devolvemos lo apostado',
     abSuprema:'Suprema',
     avPolen:'+70 miel',
@@ -858,8 +844,6 @@ const TEXTOS = {
     abInmune:'la plaga no la toca',
     cartelMaquina:'36 CASILLAS · TODAS PAGAN IGUAL · ¡SUERTE PURA!',
     polen:'Polen',
-    humo:'Humo',
-    humoDesc:'Espanta la plaga. Con plaga, la abeja no produce.',
     colmena:'Colmena', panales:'{0}/{1} panales',
     navColmena:'Colmena', navTienda:'Tienda', navMochila:'Mochila',
     navMercado:'Mercado', navSuerte:'Suerte',
@@ -944,6 +928,8 @@ const TEXTOS = {
   },
 
   en: {
+    abrirGratis:'Open for free',
+    gratis:'FREE',
     avVencida:'Your previous bet expired · we are returning your stake',
     abSuprema:'Supreme',
     avPolen:'+70 honey',
@@ -996,8 +982,6 @@ const TEXTOS = {
     abInmune:'pests do not touch her',
     cartelMaquina:'36 SQUARES · ALL PAY THE SAME · PURE LUCK!',
     polen:'Pollen',
-    humo:'Smoke',
-    humoDesc:'Drives the pest off. With a pest, the bee stops producing.',
     colmena:'Hive', panales:'{0}/{1} cells',
     navColmena:'Hive', navTienda:'Shop', navMochila:'Bag',
     navMercado:'Market', navSuerte:'Luck',
@@ -1082,6 +1066,37 @@ const TEXTOS = {
   },
 
   pt: {
+    abrirGratis:'Abrir grátis',
+    gratis:'GRÁTIS',
+    usar:'Usar',
+    sinAbejasPuestas:'Você não tem abelhas colocadas.',
+    humo:'Fumaça',
+    pot1h:'Potenciador 1 hora',
+    pot6h:'Potenciador 6 horas',
+    pot24h:'Potenciador 24 horas',
+    medallon:'Medalhão',
+    humoDesc:'Espanta a praga de uma abelha.',
+    pot1hDesc:'Produz o dobro durante uma hora.',
+    pot6hDesc:'Produz o dobro durante seis horas.',
+    pot24hDesc:'Produz o dobro durante um dia inteiro.',
+    medallonDesc:'Junta as duas abelhas de um favo numa só.',
+    alimentarTodas:'Alimentar todas',
+    fumigarTodas:'Fumigar todas',
+    traerGranja:'Trazer minha fazenda anterior',
+    avTraido:'Pronto, sua fazenda está aqui',
+    avFundida:'Abelhas fundidas',
+    sinMedallon:'Você precisa de um medalhão',
+    avComieron:'Todas comeram',
+    avFumigadas:'Praga espantada',
+    sinPlaga:'Nenhuma tem praga',
+    sinHumo:'Falta fumaça: você precisa de {0}',
+    avPotenciada:'Potenciador ativado',
+    avInvitacion:'Convite registrado',
+    avComio1:'Comeu por hoje',
+    yaComio:'Já comeu hoje, volte amanhã',
+    fundir:'Fundir as duas',
+    potenciar:'Potenciar',
+    bonusQueda:'potenciada · {0}',
     subirA:'Subir para {0} BUZZ',
     subiAviso:'Se errar, perde o prêmio todo.',
     subiTexto:'Você acerta 6 de cada 10 e o prêmio sobe para ×{0}.',
@@ -1139,8 +1154,6 @@ const TEXTOS = {
     abInmune:'a praga não a pega',
     cartelMaquina:'36 CASAS · TODAS PAGAM IGUAL · PURA SORTE!',
     polen:'Pólen',
-    humo:'Fumaça',
-    humoDesc:'Espanta a praga. Com praga, a abelha não produz.',
     colmena:'Colmeia', panales:'{0}/{1} favos',
     navColmena:'Colmeia', navTienda:'Loja', navMochila:'Mochila',
     navMercado:'Mercado', navSuerte:'Sorte',
@@ -1241,7 +1254,6 @@ function cambiarIdioma(){
   document.documentElement.lang = idioma;
   pintarTextos();
   refrescar();
-  if(typeof pintarApuestas === 'function') pintarApuestas();
 }
 
 
@@ -1258,11 +1270,11 @@ const APP_ID = 'app_3e9c2f5581972d797aedb86a4c34c3d4';
 /* Tres contratos que se hablan entre si:
    BANCO   guarda el saldo, la reserva, el deposito, el retiro y el Ganar
    GRANJA  las abejas, los panales, la plaga y los items
-   MAQUINA las apuestas, el consuelo y la subida
+   La maquina salio del juego por ahora.
    Para el jugador es un solo saldo: el banco es el que lo custodia. */
 const BANCO   = '0xfc9bc00d4445fea7c6c99fecd02cd4cac6337e18';
-const GRANJA  = '0x35bbf092ccca8e820413c4f1825505d67554c2bd';
-const MAQUINA = '0x31596754040614e8cee439dfe1940751ebd200b1';
+const GRANJA  = '0x167c76dcdbac2aeb3bca07dd667eb7850c706b0b';
+const VIEJA   = '0x35bbf092ccca8e820413c4f1825505d67554c2bd';   // solo para el traspaso
 const TOKEN  = '0xf9f44acea8d3f7f34ff9766cbbe5293f11b719fe';
 const RPC    = 'https://worldchain-mainnet.g.alchemy.com/public';
 const CHAIN  = 480;
@@ -1276,14 +1288,33 @@ function dato(firma, tipos, vals){
   const sel = ethers.id(firma).slice(0,10);
   return tipos.length ? sel + coder().encode(tipos, vals).slice(2) : sel;
 }
+/* Cada lectura lleva su nombre en el error. Sin consola en World App, si
+   no se dice cual fallo no hay forma de saberlo. */
+/* Una lectura que falla devuelve null en vez de tumbar toda la pantalla:
+   antes, si una sola se rompia, no se pintaba nada —ni los saldos, ni los
+   panales, ni el boton de traer— y no habia forma de saber cual era. */
+async function leerSeguro(to, firma, tEnt, vals, tSal){
+  try{
+    return await leer(to, firma, tEnt, vals, tSal);
+  }catch(e){
+    problemas.push(firma.split('(')[0]);
+    return null;
+  }
+}
+let problemas = [];
+
 async function leer(to, firma, tEnt, vals, tSal){
   const r = await fetch(RPC, {method:'POST', headers:{'Content-Type':'application/json'},
     body: JSON.stringify({jsonrpc:'2.0', id:1, method:'eth_call',
       params:[{to:to.toLowerCase(), data:dato(firma,tEnt,vals)}, 'latest']})});
   const j = await r.json();
-  if(j.error) throw new Error(j.error.message);
-  if(!j.result || j.result === '0x') return null;
-  return coder().decode(tSal, j.result);
+  if(j.error) throw new Error(firma + ': ' + j.error.message);
+  if(!j.result || j.result === '0x') throw new Error(firma + ': sin respuesta');
+  try{
+    return coder().decode(tSal, j.result);
+  }catch(e){
+    throw new Error(firma + ': la respuesta no coincide');
+  }
 }
 
 function motivo(r){
@@ -1318,7 +1349,6 @@ async function firmar(lista, aviso){
 }
 const aBanco   = (f,t,v) => ({ to: BANCO,   data: dato(f,t,v) });
 const aGranja  = (f,t,v) => ({ to: GRANJA,  data: dato(f,t,v) });
-const aMaquina = (f,t,v) => ({ to: MAQUINA, data: dato(f,t,v) });
 const aToken = (f,t,v) => ({ to: TOKEN, data: dato(f,t,v) });
 
 const num = v => Number(ethers.formatUnits(v, 18));
@@ -1332,9 +1362,10 @@ async function bajarCatalogo(){
     /* El contrato ya no devuelve el nombre: la pantalla tiene el suyo en
        los tres idiomas, asi que guardarlo en cadena era trabajo doble. */
     const r = await leer(GRANJA,'verAbeja(address,uint256)',['address','uint256'],[TOKEN,i],
-      ['uint8','uint256','uint256','uint256','uint32','bool']);
+      ['uint8','uint256','uint256','uint256','uint32','uint8','bool']);
     catalogo.push({ id:i, rareza:Number(r[0]), costo:num(r[1]), miel:num(r[2]),
-                    comida:num(r[3]), dias:Number(r[4]), activa:r[5] });
+                    comida:num(r[3]), dias:Number(r[4]),
+                    porciones:Number(r[5]), activa:r[6] });
   }
   const orden = Object.keys(ABEJAS);
   catalogo.forEach((c, i) => {
@@ -1354,68 +1385,94 @@ const CLAVE_DE = {};
 /* ---- traer todo el estado del jugador ---- */
 async function bajarEstado(){
   if(!yo) return;
+  problemas = [];
   try{
     const [wal, mio, res, gj] = await Promise.all([
-      leer(TOKEN,'balanceOf(address)',['address'],[yo],['uint256']),
-      leer(BANCO,'miEstado(address,address)',['address','address'],[TOKEN,yo],
-        ['uint256','uint256','uint256']),
-      leer(BANCO,'resumen(address)',['address'],[TOKEN],
+      leerSeguro(TOKEN,'balanceOf(address)',['address'],[yo],['uint256']),
+      leerSeguro(BANCO,'miEstado(address,address)',['address','address'],[TOKEN,yo],
+        ['uint256','uint256','uint256','uint16','uint64','bool']),
+      leerSeguro(BANCO,'resumen(address)',['address'],[TOKEN],
         ['uint8','bool','bool','uint256','uint256','uint16']),
-      leer(GRANJA,'resumen(address)',['address'],[TOKEN],
+      leerSeguro(GRANJA,'resumen(address)',['address'],[TOKEN],
         ['uint256','uint256','uint256','uint256'])
     ]);
 
-    S.enWallet = num(wal[0]);
-    S.buzz     = num(mio[0]);
-    S.guardado = num(mio[1]);
-    S.ganado   = num(mio[2]);
-    S.reserva  = num(res[3]);
-    S.quemaBP  = Number(res[5]);
-    PRECIO_PANAL = num(gj[1]);
+    if(wal) S.enWallet = num(wal[0]);
+    if(mio){
+      S.buzz     = num(mio[0]);
+      S.guardado = num(mio[1]);
+      S.ganado   = num(mio[2]);
+      S.tasaGanar      = Number(mio[3]) / 100;
+      S.bloqueoHasta   = Number(mio[4]);
+      S.bloqueoVencido = mio[5];
+    }
+    if(res){ S.reserva = num(res[3]); S.quemaBP = Number(res[5]); }
+    if(gj) PRECIO_PANAL = num(gj[1]);
 
     const [ab, mi] = await Promise.all([
-      leer(GRANJA,'abiertos(address,address)',['address','address'],[TOKEN,yo],['uint8']),
-      leer(GRANJA,'mielDe(address,address)',['address','address'],[TOKEN,yo],['uint256'])
+      leerSeguro(GRANJA,'abiertos(address,address)',['address','address'],[TOKEN,yo],['uint8']),
+      leerSeguro(GRANJA,'mielDe(address,address)',['address','address'],[TOKEN,yo],['uint256'])
     ]);
-    S.abiertos = Number(ab[0]);
-    S.miel     = num(mi[0]);
+    if(ab) S.abiertos = Number(ab[0]);
+    if(mi) S.miel     = num(mi[0]);
 
     /* Cuantos insumos tiene guardados. Antes era una cuenta del navegador
        que se perdia al cerrar; ahora la lleva el contrato. */
-    for(const k in ITEM_DE){
-      const b = await leer(GRANJA,'bolsa(address,address,uint256)',
-        ['address','address','uint256'], [TOKEN, yo, ITEM_DE[k]], ['uint256']);
-      S.insumos[k] = Number(b[0]);
+    for(const k in ITEM){
+      const b = await leerSeguro(GRANJA,'bolsa(address,address,uint256)',
+        ['address','address','uint256'], [TOKEN, yo, ITEM[k]], ['uint256']);
+      if(b) S.insumos[k] = Number(b[0]);
+    }
+
+    /* Si tiene cosas en la granja anterior y todavia no las trajo, se le
+       ofrece el traspaso apenas entra. */
+    const yaTrajo = await leerSeguro(GRANJA,'migrado(address,address)',['address','address'],[TOKEN,yo],['bool']);
+    S.puedeTraer = false;
+    if(yaTrajo && !yaTrajo[0]){
+      try{
+        const v = await leerSeguro(VIEJA,'abiertos(address,address)',['address','address'],[TOKEN,yo],['uint8']);
+        S.puedeTraer = Number(v[0]) > 0;
+      }catch(e){}
     }
 
     for(let i = 0; i < 6; i++){
       for(let k = 0; k < POR_PANAL; k++){
         const lugar = i * POR_PANAL + k;
-        const p = await leer(GRANJA,'puestas(address,address,uint8)',['address','address','uint8'],
+        /* verLugar trae todo de una: la plaga, si puede comer, si se puede
+           fundir y cuanto le queda de potenciador. Una lectura en vez de tres. */
+        const V = await leerSeguro(GRANJA,'verLugar(address,address,uint8)',['address','address','uint8'],
           [TOKEN, yo, lugar],
-          ['uint16','uint64','uint64','uint64','uint64','uint64','uint16','uint32','uint256']);
-        const tipo = Number(p[0]) - 1;
+          ['uint16','uint8','uint64','uint64','uint64','bool','bool','bool','uint256']);
+        if(!V){ S.panales[i][k] = null; continue; }
+        const tipo = Number(V[0]) - 1;
         if(tipo < 0){ S.panales[i][k] = null; continue; }
-        const [m, pl] = await Promise.all([
-          leer(GRANJA,'mielLista(address,address,uint8)',['address','address','uint8'],[TOKEN,yo,lugar],['uint256']),
-          leer(GRANJA,'tienePlaga(address,address,uint8)',['address','address','uint8'],[TOKEN,yo,lugar],['bool'])
-        ]);
         S.panales[i][k] = {
           tipo: CLAVE_DE[tipo] || 'obrera',
           lugar,
-          /* En segundos, igual que ahora(). Antes se multiplicaba por mil y
-             se restaban milisegundos contra segundos: de ahi salian esos
-             veinte millones de dias de vida. */
-          muereEn:   Number(p[1]),
-          comeHasta: Number(p[2]),
-          miel: num(m[0]),
-          plaga: pl[0],
-          polen: false, id: lugar + 1
+          fusiones:    Number(V[1]),
+          muereEn:     Number(V[2]),
+          comeHasta:   Number(V[3]),
+          bonusHasta:  Number(V[4]),
+          plaga:       V[5],
+          puedeComer:  V[6],
+          puedeFundir: V[7],
+          miel: num(V[8]),
+          id: lugar + 1
         };
       }
     }
     refrescar();
-  }catch(e){ avisar('No se pudo leer la cadena'); }
+    if(problemas.length) avisar('No se pudo leer: ' + [...new Set(problemas)].join(', '));
+  }catch(e){
+    avisar(String(e.message || e).slice(0, 90));
+    const c = document.getElementById('cargando');
+    if(c && !c.classList.contains('fuera')){
+      c.innerHTML = '<div style="padding:22px; text-align:center; font-size:13px; line-height:1.7">' +
+        '<b style="color:var(--miel); font-size:15px">No se pudo leer la cadena</b><br><br>' +
+        '<span style="color:#FF8A80">' + String(e.message || e) + '</span><br><br>' +
+        '<button class="grande" onclick="location.reload()">Probar de nuevo</button></div>';
+    }
+  }
 }
 /* Si la lectura todavia no llego, se muestra el precio configurado en vez
    de un cero que confunde. El cobro real siempre lo hace el contrato. */
@@ -1472,10 +1529,10 @@ const ABEJAS = {
   ignea:      {ico:'ignea',      rareza:'epica',      costo:62,  dias:11, miel:90,  comida:2.16},
   dulce:      {ico:'dulce',      rareza:'epica',      costo:70,  dias:12, miel:97,  comida:2.46},
   reina:      {ico:'reina',      rareza:'legendaria', costo:99,  dias:13, miel:131, comida:3.47},
-  guardiana:  {ico:'guardiana',  rareza:'legendaria', costo:127, dias:13, miel:167, comida:4.43},
-  cristal:    {ico:'cristal',    rareza:'legendaria', costo:160, dias:14, miel:200, comida:5.59},
-  cosmica:    {ico:'cosmica',    rareza:'legendaria', costo:204, dias:14, miel:255, comida:7.13},
-  suprema:    {ico:'suprema',    rareza:'legendaria', costo:5000, dias:16, miel:5750, comida:175}
+  guardiana:  {ico:'guardiana',  rareza:'legendaria', costo:127, dias:13, miel:167, comida:4.43, inmune:true},
+  cristal:    {ico:'cristal',    rareza:'legendaria', costo:160, dias:14, miel:200, comida:5.59, inmune:true},
+  cosmica:    {ico:'cosmica',    rareza:'legendaria', costo:204, dias:14, miel:255, comida:7.13, inmune:true},
+  suprema:    {ico:'suprema',    rareza:'legendaria', costo:5000, dias:16, miel:5750, comida:175, inmune:true}
 };
 const NOMBRE_ABEJA = {
   obrera:'abObrera', selvatica:'abSelvatica', mielera:'abMielera', florista:'abFlorista',
@@ -1490,15 +1547,20 @@ for(const k in ABEJAS){
   a.gasta = a.costo + a.comida * a.dias;
   a.saca  = a.miel * a.dias / MIEL_POR_BUZZ;
   a.neto  = a.saca - a.gasta;
+  if(a.inmune) a.rasgo = 'la plaga no la toca';
   Object.defineProperty(a, 'desc', { get(){
     return tr('abDesc', a.dias, a.miel, red(a.comida))
-         + tr('abDesc2', red(a.gasta), red(a.saca), red(a.neto));
+         + tr('abDesc2', red(a.gasta), red(a.saca), red(a.neto))
+         + (a.inmune ? '<br><i style="color:'+a.color+'">' + tr('abInmune') + '</i>' : '');
   }});
 }
 
 const INSUMOS = {
-  polen:{ico:'polen', costo:5},
-  humo: {ico:'humo',  costo:5}
+  humo:     {ico:'humo',  costo:5},
+  pot1h:    {ico:'polen', costo:8},
+  pot6h:    {ico:'polen', costo:40},
+  pot24h:   {ico:'polen', costo:250},
+  medallon: {ico:'buzz',  costo:400}
 };
 for(const k in INSUMOS){
   Object.defineProperty(INSUMOS[k], 'nom',  { get(){ return tr(k); } });
@@ -1528,7 +1590,10 @@ const PANALES = [
 /* El precio lo dice la granja: todos los panales valen lo mismo y el
    contrato ya hizo la cuenta. Antes esto lo calculaba la pantalla por su
    cuenta y mostraba un numero que no era el que se iba a cobrar. */
-const costoPanal = () => PRECIO_PANAL;
+/* El primer panal es gratis en el contrato, asi que la pantalla tiene que
+   decir lo mismo: antes mostraba el precio en todos y el que llegaba
+   pensaba que tenia que pagar para empezar. */
+const costoPanal = i => (i === 0 ? 0 : PRECIO_PANAL);
 const entra = () => true;
 
 // posición de cada panal sobre la imagen del campo, en % del lienzo
@@ -1549,7 +1614,8 @@ const S = {
   retirado:0,        // lo que ya pasó a la wallet
   casa:{ buzz:{ap:0, pa:0, gratis:0, usados:0, dia:0, ultimoGratis:0, apuestas:null} },
   mochila:Object.fromEntries(Object.keys(ABEJAS).map(k => [k, k === 'obrera' ? 1 : 0])),
-  insumos:{polen:2, humo:1},
+  insumos:{humo:0, pot1h:0, pot6h:0, pot24h:0, medallon:0},
+  puedeTraer:false,
   abiertos:0,                 // los abre el jugador, todos se pagan
   panales:Array.from({length:6}, () => [null, null])
 };
@@ -1640,8 +1706,10 @@ function pintarParcelas(){
     if(p.dataset.firma !== firma){
       p.dataset.firma = firma;
       if(i >= S.abiertos){
-        p.innerHTML = '<div class="candado"><div><div class="llave">🔒</div>' +
-          '<div class="precio">' + costoPanal() + ' BUZZ</div></div></div>';
+        p.innerHTML = '<div class="candado"><div><div class="llave">' +
+          (i === 0 ? '🎁' : '🔒') + '</div>' +
+          '<div class="precio">' + (i === 0 ? tr('gratis') : costoPanal(i) + ' BUZZ') +
+          '</div></div></div>';
       }else if(vivas.length === 0){
         p.innerHTML = '<span class="mas">+</span>';
       }else{
@@ -1691,6 +1759,12 @@ function pintarParcelas(){
   const lugares  = S.abiertos * POR_PANAL;
   document.getElementById('conteoPanales').textContent = tr('panales', ocupados, lugares);
 
+  const btT = document.getElementById('btnTraer');
+  if(btT) btT.style.display = S.puedeTraer ? '' : 'none';
+
+  const bt = document.getElementById('btnTraer');
+  if(bt) bt.style.display = S.puedeTraer ? '' : 'none';
+
   const hay = S.panales.some(par => par.some(b => b && b.miel >= 1));
   const btn = document.getElementById('cosecharTodo');
   btn.classList.toggle('on', hay);
@@ -1722,10 +1796,12 @@ function tocar(i){
     const p = PANALES[i], puede = i === S.abiertos;
     caja.innerHTML = '<div class="tira"></div><h2>' + tr('panalCerrado') + '</h2>' +
       '<p class="sub">' + (puede ? tr('panalAbriloLibre') : tr('panalAnterior')) + '</p>' +
-      '<div class="dato"><span>' + tr('cuesta') + '</span><b>' + costoPanal() + ' BUZZ</b></div>' +
+      '<div class="dato"><span>' + tr('cuesta') + '</span><b>' +
+        (i === 0 ? tr('gratis') : costoPanal(i) + ' BUZZ') + '</b></div>' +
       '<div class="dato"><span>' + tr('tenesTotal') + '</span><b>' + red(S.buzz) + ' BUZZ</b></div>' +
       '<button class="grande" onclick="abrirPanal()"' +
-        (puede && S.buzz >= costoPanal() ? '' : ' disabled') + '>' + tr('abrirPor', costoPanal()) + '</button>' +
+        (puede && S.buzz >= costoPanal(i) ? '' : ' disabled') + '>' +
+        (i === 0 ? tr('abrirGratis') : tr('abrirPor', costoPanal(i))) + '</button>' +
       '<button class="grande gris" onclick="cerrar(\'panal\')">' + tr('cerrar') + '</button>';
     abrir('panal'); return;
   }
@@ -1747,25 +1823,28 @@ function tocar(i){
 function bloqueLugar(i, k, b){
   const t = ahora();
   if(!b){
-    const tengo = Object.entries(S.mochila).filter(([,c]) => c > 0);
     return '<div class="dato" style="margin-top:12px"><span><b>' + tr('lugar', k + 1) + '</b><br>' +
       '<small style="color:var(--tenue)">' + tr('lugarVacio') + '</small></span>' +
-      '<button class="acc" onclick="verPoner(' + k + ')"' + (tengo.length ? '' : ' disabled') + '>' +
-      tr('poner') + '</button></div>';
+      '<button class="acc" onclick="verPoner(' + k + ')">' + tr('poner') + '</button></div>';
   }
 
   const a = ABEJAS[b.tipo];
   const hambre = b.comeHasta <= t;
-  const llena  = b.miel >= a.tope - 0.5;
-  const puedeComer = Math.max(0, Math.min(3 * DIA, b.muereEn - Math.max(t, b.comeHasta)));
-  const costo3 = red2(a.comida * puedeComer / DIA * 1);
+  const bono   = b.bonusHasta > t;
+  const cuantas = (b.fusiones || 0) + 1;
+
+  let estado;
+  if(b.plaga)       estado = tr('conPlaga');
+  else if(hambre)   estado = tr('conHambre');
+  else              estado = tr('produciendo', Math.round(a.miel * cuantas));
 
   return '<div class="item" style="margin-top:12px">' +
     '<img class="bicho" style="border-color:' + a.color + '" src="' + ICO[a.ico] + '" alt="">' +
-    '<div class="info"><b>' + a.nom + '</b><small>' +
-      (b.plaga ? tr('conPlaga') : hambre ? tr('conHambre') : llena ? tr('panalLleno')
-        : tr('produciendo', Math.round(a.miel * 1))) +
+    '<div class="info"><b>' + a.nom +
+      (cuantas > 1 ? ' <span style="color:var(--miel)">×' + cuantas + '</span>' : '') + '</b><small>' +
+      estado +
       tr('leQueda', plazo(b.muereEn - t), plazo(b.comeHasta - t)) +
+      (bono ? '<br><span style="color:var(--verde)">' + tr('bonusQueda', plazo(b.bonusHasta - t)) + '</span>' : '') +
       '<br>' + tr('mielEnPanal', red(b.miel)) + '</small></div></div>' +
 
     (b.plaga
@@ -1774,14 +1853,28 @@ function bloqueLugar(i, k, b){
       : '<button class="grande" onclick="cosechar(' + k + ')"' + (b.miel >= 1 ? '' : ' disabled') + '>' +
         tr('cosecharMiel', Math.floor(b.miel)) + '</button>') +
 
-    '<button class="grande gris" onclick="alimentar(' + k + ')"' +
-      (S.buzz >= costo3 && puedeComer > 0 ? '' : ' disabled') + '>' +
-      (puedeComer <= 0 ? tr('yaComio') : tr('alimentarDias', red(puedeComer / DIA), costo3)) + '</button>' +
+    '<button class="grande gris" onclick="alimentar(' + k + ')"' + (b.puedeComer ? '' : ' disabled') + '>' +
+      (b.puedeComer ? tr('alimentarDias', 1, red2(a.comida * cuantas)) : tr('yaComio')) + '</button>' +
 
-    (!b.plaga && !b.polen
-      ? '<button class="grande gris" onclick="polen(' + k + ')"' + (S.insumos.polen > 0 ? '' : ' disabled') + '>' +
-        tr('usarPolen', S.insumos.polen) + '</button>'
+    /* los tres potenciadores, con lo que tiene de cada uno */
+    '<div class="fila4" style="margin-top:6px">' +
+      pot(k, 'pot1h', '1h') + pot(k, 'pot6h', '6h') + pot(k, 'pot24h', '24h') +
+    '</div>' +
+
+    /* fundir: solo en el lugar par del panal y si las dos se pueden */
+    (k === 0 && b.puedeFundir && S.panales[i][1] && S.panales[i][1].puedeFundir &&
+     S.panales[i][1].tipo === b.tipo
+      ? '<button class="grande gris" onclick="fundir(' + i + ')"' +
+        ((S.insumos.medallon || 0) > 0 ? '' : ' disabled') + '>' +
+        tr('fundir') + ' (' + (S.insumos.medallon || 0) + ')</button>'
       : '');
+}
+
+/* Un botoncito por cada potenciador, con cuantos le quedan. */
+function pot(k, cual, txt){
+  const n = S.insumos[cual] || 0;
+  return '<button class="acc gris" onclick="usarPotenciador(' + k + ',\'' + cual + '\')"' +
+    (n > 0 ? '' : ' disabled') + '>' + txt + ' (' + n + ')</button>';
 }
 
 /* Lista de abejas para llenar un lugar. Ya no hay rareza que valga: entra
@@ -1832,9 +1925,10 @@ function poner(t){
 
 async function alimentar(k){
   const b = S.panales[elegido][k]; if(!b) return;
+  if(!b.puedeComer){ avisar(tr('yaComio')); return; }
   cerrar('panal');
-  await firmar([aGranja('alimentar(address,uint8,uint32)', ['address','uint8','uint32'],
-    [TOKEN, b.lugar, 3])], tr('avComio', 3, ''));
+  await firmar([aGranja('alimentar(address,uint8)', ['address','uint8'],
+    [TOKEN, b.lugar])], tr('avComio1'));
 }
 
 async function polen(k){
@@ -1936,7 +2030,9 @@ function primerLugarLibre(){
    las mismas para cualquier abeja. Los items 0 y 2 son los viejos, que
    daban un dia entero de produccion y con las abejas caras eran regalo:
    quedan en el contrato pero la pantalla no los ofrece. */
-const ITEM_DE = { polen:2, humo:1 };
+/* Los items, en el orden en que se cargaron en la granja. */
+const ITEM = { humo:0, pot1h:1, pot6h:2, pot24h:3, medallon:4 };
+const ITEM_DE = ITEM;   // nombre viejo, por compatibilidad
 
 /* Se compran de a varios para tenerlos guardados, no uno por uno cada vez
    que hace falta. */
@@ -1957,15 +2053,49 @@ function comprarInsumoViejo(t){
 // ---- mochila ----
 /* Ya no hay abejas guardadas: se compran y se ponen de una. La mochila
    pasa a ser lo que si se guarda, que son los insumos. */
+/* La mochila no es solo para mirar: desde aca se usa lo que uno tiene.
+   Al tocar un item se elige sobre que abeja aplicarlo. */
 function verMochila(){
   const filas = Object.entries(INSUMOS).map(([k, a]) => {
     const n = S.insumos[k] || 0;
+    const usable = n > 0 && k !== 'medallon';
     return '<div class="item"><img class="bicho" src="' + ICO[a.ico] + '" alt="">' +
       '<div class="info"><b>' + a.nom + '</b><small>' + a.desc + '</small></div>' +
-      '<div class="lado"><span class="n">' + tr('tenes', n) + '</span></div></div>';
+      '<div class="lado"><span class="n">' + n + '</span>' +
+      (usable ? '<button class="acc" onclick="elegirAbeja(\'' + k + '\')">' + tr('usar') + '</button>' : '') +
+      '</div></div>';
   }).join('');
   document.getElementById('listaMochila').innerHTML = filas +
     '<p class="nota">' + tr('mochilaComo') + '</p>';
+}
+
+/* Muestra las abejas puestas para elegir sobre cual usar el item. */
+let itemElegido = null;
+function elegirAbeja(cual){
+  itemElegido = cual;
+  const filas = [];
+  S.panales.forEach((par, i) => par.forEach((b, k) => {
+    if(!b) return;
+    const a = ABEJAS[b.tipo];
+    const sirve = cual === 'humo' ? b.plaga : true;
+    filas.push('<div class="item"><img class="bicho" style="border-color:' + a.color +
+      '" src="' + ICO[a.ico] + '" alt="">' +
+      '<div class="info"><b>' + a.nom + '</b><small>' + tr('lugar', b.lugar + 1) +
+      (b.plaga ? ' · ' + tr('etPlaga') : '') + '</small></div>' +
+      '<div class="lado"><button class="acc"' + (sirve ? '' : ' disabled') +
+      ' onclick="usarDesdeMochila(' + i + ',' + k + ')">' + tr('usar') + '</button></div></div>');
+  }));
+  document.getElementById('listaMochila').innerHTML =
+    (filas.length ? filas.join('') : '<div class="nada">' + tr('sinAbejasPuestas') + '</div>') +
+    '<button class="grande gris" onclick="verMochila()">' + tr('cerrar') + '</button>';
+}
+
+async function usarDesdeMochila(i, k){
+  const b = S.panales[i][k]; if(!b || !itemElegido) return;
+  const cual = itemElegido;
+  cerrar('mochila');
+  await firmar([aGranja('usarItem(address,uint256,uint8)', ['address','uint256','uint8'],
+    [TOKEN, ITEM[cual], b.lugar])], cual === 'humo' ? tr('avHumo') : tr('avPotenciada'));
 }
 
 // ---- mercado ----
@@ -2009,8 +2139,8 @@ async function retirar(parte){
 }
 
 // ---- hojas ----
-const HOJAS = {gane:'hGane', tienda:'hTienda', mochila:'hMochila', mercado:'hMercado',
-               ganar:'hGanar', suerte:'hSuerte', panal:'hPanal'};
+const HOJAS = {tienda:'hTienda', mochila:'hMochila', mercado:'hMercado',
+               ganar:'hGanar', panal:'hPanal'};
 /* La hoja se muestra PRIMERO y despues se pinta. Antes era al reves: si
    el pintado se rompia, la pantalla nunca aparecia y parecia que el boton
    no andaba. Ahora un error al pintar deja la hoja abierta con lo que
@@ -2024,8 +2154,7 @@ function abrir(c){
     if(c === 'mochila') verMochila();
     if(c === 'mercado') verMercado();
     if(c === 'ganar')   verGanar();
-    if(c === 'suerte')  verSuerte();
-  }catch(e){
+    }catch(e){
     avisar('No se pudo cargar esta pantalla');
   }
 }
@@ -2082,7 +2211,7 @@ setInterval(() => {
 
   const cand = [];
   S.panales.forEach(par => par.forEach(b => {
-    if(!b || b.plaga) return;
+    if(!b || b.plaga || ABEJAS[b.tipo].inmune) return;
     if(b.comeHasta <= t) return;                  // a la que no come, no se le suma
     if(tocadasAyer.includes(b.id)) return;        // ayer le tocó, hoy no
     if(tocadasHoy.includes(b.id)) return;         // y nunca dos veces el mismo día
@@ -2113,185 +2242,6 @@ setInterval(() => {
 }, 1000);
 
 
-/* ===================================================================
-   LA MÁQUINA — 28 casillas, la luz frena en una sola.
-   La justicia no está escondida en pesos: está a la vista en el marco.
-   Cada símbolo ocupa tantas casillas como 24/multiplicador, así que
-   casillas × multiplicador da 24 para todos y los seis devuelven el
-   mismo 85,7%. El 15% restante se quema.
-   El azar sale de crypto.getRandomValues con descarte de sesgo, y el
-   marco se baraja antes de cada giro: no hay patrón que aprender.
-   =================================================================== */
-let girando = false;
-
-const CASILLAS_TOTAL = 36;
-/* casillas × multiplicador da 30 para los nueve, así que todos devuelven
-   30/36 = 83,3%. Para que BAR pagara ×30 y el siete ×15 había que pasar
-   de 28 a 36 casillas: con 28 la cuenta daba 107% y perdía la casa. */
-const SIMB = [
-  {id:'obrera',     ico:'sObrera',     clave:'abeja',          x:3,  n:10, col:'#ffc107'},
-  {id:'rara',       ico:'sRara',       clave:'abejaRara',      x:5,  n:6,  col:'#7bd88f'},
-  {id:'panal',      ico:'sPanal',      clave:'panal',          x:6,  n:5,  col:'#ffb300'},
-  {id:'legendaria', ico:'sLegendaria', clave:'abejaLeg',       x:10, n:3,  col:'#ff7a3d'},
-  {id:'mistica',    ico:'sMistica',    clave:'abejaMis',       x:10, n:3,  col:'#b47cff'},
-  {id:'trueno',     ico:'sTrueno',     clave:'abejaTru',       x:10, n:3,  col:'#4fc3f7'},
-  {id:'buzz',       ico:'buzz',        clave:'logoBuzz',       x:10, n:3,  col:'#fff3a0'},
-  {id:'siete',      ico:'sSiete',      clave:'elSiete',        x:15, n:2,  col:'#ff3d3d'},
-  {id:'bar',        ico:'sBar',        clave:'bar',            x:30, n:1,  col:'#e0e0e0'}
-];
-/* El nombre de cada símbolo también sale del idioma elegido. */
-for(const s of SIMB){
-  Object.defineProperty(s, 'nom', { get(){ return tr(this.clave); } });
-}
-
-// dónde cae cada casilla en la grilla de 8x8, dando la vuelta al reloj
-const LADO = 10;
-const POS = [];
-for(let c=1;c<=LADO;c++) POS.push([1,c]);
-for(let f=2;f<LADO;f++) POS.push([f,LADO]);
-for(let c=LADO;c>=1;c--) POS.push([LADO,c]);
-for(let f=LADO-1;f>=2;f--) POS.push([f,1]);
-
-/* azar del sistema, sin sesgo: descarto los valores de la cola que
-   harían que unos números salgan más que otros */
-function azar(n){
-  const tope = Math.floor(4294967296 / n) * n;
-  const a = new Uint32Array(1);
-  do { crypto.getRandomValues(a); } while(a[0] >= tope);
-  return a[0] % n;
-}
-
-
-const SEPARACION = 2;   // dos iguales no pueden quedar a menos de 3 casillas
-/* BAR y el siete tienen lugar fijo: arriba al medio y abajo al medio.
-   Es solo dónde se dibujan; la casilla donde frena la luz se sortea
-   aparte, pareja entre las 28, así que no cambia las chances de nadie. */
-const FIJOS = {4:'bar', 23:'siete'};
-
-/* Reparte el resto alrededor del anillo dejando aire entre los repetidos. */
-function repartirAnillo(){
-  const cuentas = SIMB.map(s => s.n);
-  const N = cuentas.reduce((a,b) => a+b, 0);
-  const idDe = id => SIMB.findIndex(s => s.id === id);
-
-  for(let intento = 0; intento < 400; intento++){
-    const anillo = new Array(N).fill(null), queda = cuentas.slice();
-    for(const p in FIJOS){ const s = idDe(FIJOS[p]); anillo[p] = s; queda[s]--; }
-
-    const libres = [];
-    for(let i = 0; i < N; i++) if(anillo[i] === null) libres.push(i);
-
-    let trabado = false;
-    for(const i of libres){
-      // no puede repetir a nadie que ya esté a menos de SEPARACION+1 casillas
-      const veda = new Set();
-      for(let k = 1; k <= SEPARACION; k++){
-        const a = anillo[(i - k + N) % N], b = anillo[(i + k) % N];
-        if(a !== null) veda.add(a);
-        if(b !== null) veda.add(b);
-      }
-      let tope = -1;
-      for(let s = 0; s < queda.length; s++)
-        if(queda[s] > 0 && !veda.has(s)) tope = Math.max(tope, queda[s]);
-      if(tope < 0){ trabado = true; break; }
-      // entre los que más quedan, uno al azar: así no sale siempre el mismo dibujo
-      const cand = [];
-      for(let s = 0; s < queda.length; s++)
-        if(queda[s] > 0 && queda[s] >= tope - 1 && !veda.has(s)) cand.push(s);
-      const el = cand[azar(cand.length)];
-      anillo[i] = el; queda[el]--;
-    }
-    if(trabado) continue;
-
-    let choca = false;
-    for(let i = 0; i < N && !choca; i++)
-      for(let k = 1; k <= SEPARACION; k++)
-        if(anillo[i] === anillo[(i+k) % N]) choca = true;
-    if(!choca) return anillo;
-  }
-  // por las dudas, nunca pasa
-  const suelto = [];
-  SIMB.forEach((s, i) => { for(let k = 0; k < s.n; k++) suelto.push(i); });
-  return suelto;
-}
-
-let marco = [];
-function barajarMarco(){ marco = repartirAnillo(); }
-
-// la fila de abajo: de menor a mayor, con el siete en el lugar del medio
-const ORDEN = ['obrera','rara','panal','legendaria','siete','mistica','trueno','buzz','bar'];
-const porId = id => SIMB.find(s => s.id === id);
-
-/* ---- el compensador ----
-   Lo que pide el dueño. La tabla sola devuelve 30/36 = 83,3%, así que la
-   casa se quedaría con 16,7%. Si el dueño quiere quedarse con menos, la
-   máquina tiene que devolver la diferencia.
-   Las máquinas de bar lo hacen aflojando las probabilidades cuando van
-   ganando — pero eso obliga a que la luz no frene pareja entre las
-   casillas que ves. Acá se compensa REGALANDO GIROS: las chances no se
-   tocan nunca, y un giro que no pagaste sube lo que recuperás.
-   Además la cuenta es tuya, no de la máquina: no se puede esperar a que
-   esté "caliente" porque cada jugador tiene su propio saldo. */
-/* ---- el giro de consuelo ----
-   Cuando perdés, la casa te regala un giro. Cinco por día por wallet,
-   que se reinician cada 24 horas, y nunca dos al hilo: entre uno y otro
-   tiene que pasar un rato, así que si volvés más tarde y volvés a perder,
-   te toca otro.
-
-   El giro regalado va SIEMPRE con la ficha más chica, no con lo que
-   perdiste. Si fuera con la misma apuesta, el que hace 5 giros grandes
-   por día y se lleva 5 gratis del mismo tamaño recuperaría 167%: pondría
-   125 y esperaría 208 de vuelta, todos los días. Con la ficha chica el
-   regalo cuesta 4,2 tokens por wallet por día como mucho, juegue como
-   juegue, y la máquina se queda entre 13% y 16%.
-
-   Se juega con BUZZ, el mismo token de la granja. */
-const GRATIS_POR_DIA = 5;
-const ESPERA_GRATIS  = 1 * 3600;   // un rato entre uno y otro, en segundos del juego
-const FICHA_GRATIS   = 1;
-
-const MONEDAS = { buzz:{ico:'buzz', col:'#ffc107'} };
-const moneda = 'buzz';
-const caja = () => S.casa[moneda];
-
-/* los cinco se reponen solos al cambiar el día */
-function gratisQuedan(){
-  const c = caja(), hoy = Math.floor(ahora() / (24 * 3600));
-  if(c.dia !== hoy){ c.dia = hoy; c.usados = 0; }
-  return GRATIS_POR_DIA - c.usados;
-}
-
-function regalarGiro(){ /* el giro de consuelo no esta en el contrato */ }
-
-
-/* ---- Ganar ----
-   No es un interés: no hay tasa prometida ni sale nada de la reserva.
-   La mitad de lo que se queda la máquina va a un pozo que se reparte
-   entre los que tienen BUZZ guardado, a proporción de cuánto tenga cada
-   uno. Si una semana no juega nadie, el pozo es chico y listo. */
-const AL_POZO = 0.5;                 // la otra mitad queda en la casa
-const OTROS_GUARDADO = 50000;        // lo que tienen guardado los demás (simulado)
-
-function tuParte(){
-  const total = S.guardado + OTROS_GUARDADO;
-  return total > 0 ? S.guardado / total : 0;
-}
-/* El pozo se calcula sobre el acumulado, no tirada por tirada: lo que la
-   casa se quedó es apostado menos pagado, y eso recién se sabe cuando el
-   premio ya está acreditado. Antes se contaba la apuesta entera como
-   ganancia de la casa y el pozo se llenaba de más. */
-function actualizarPozo(){
-  const c = S.casa.buzz;
-  const debido = Math.max(0, (c.ap - c.pa)) * AL_POZO;
-  if(debido > S.pozoTotal){
-    const nuevo = debido - S.pozoTotal;
-    S.pozoTotal = debido;
-    S.ganado += nuevo * tuParte();
-  }
-}
-
-/* Traer BUZZ de la wallet al juego. El permiso y el deposito van en una
-   sola firma: MiniKit deja encadenar llamadas. */
 async function depositar(){
   const v = parseFloat(document.getElementById('inDepositar').value);
   if(!(v > 0)){ avisar(tr('avFaltaBuzz')); return; }
@@ -2301,6 +2251,49 @@ async function depositar(){
     aToken('approve(address,uint256)', ['address','uint256'], [BANCO, aWei(v)]),
     aBanco('depositar(address,uint256)', ['address','uint256'], [TOKEN, aWei(v)])
   ], tr('avDepositaste', red2(v)));
+}
+
+/* ---- lo nuevo de la granja ---- */
+
+/** Trae lo que el jugador tenia en la granja anterior. */
+async function traerGranja(){
+  await firmar([aGranja('traerMiGranja(address)', ['address'], [TOKEN])], tr('avTraido'));
+}
+
+/** Junta las dos abejas de un panal en una sola. */
+async function fundir(panal){
+  if((S.insumos.medallon || 0) < 1){ avisar(tr('sinMedallon')); return; }
+  cerrar('panal');
+  await firmar([aGranja('fundir(address,uint8,uint256)', ['address','uint8','uint256'],
+    [TOKEN, panal, ITEM.medallon])], tr('avFundida'));
+}
+
+/** Le da de comer a todas las que puedan, de un toque. */
+async function alimentarTodas(){
+  await firmar([aGranja('alimentarTodas(address)', ['address'], [TOKEN])], tr('avComieron'));
+}
+
+/** Espanta la plaga de todas las que la tengan. */
+async function fumigarTodas(){
+  const conPlaga = S.panales.reduce((n, par) => n + par.filter(b => b && b.plaga).length, 0);
+  if(!conPlaga){ avisar(tr('sinPlaga')); return; }
+  if((S.insumos.humo || 0) < conPlaga){ avisar(tr('sinHumo', conPlaga)); return; }
+  await firmar([aGranja('fumigarTodas(address,uint256)', ['address','uint256'],
+    [TOKEN, ITEM.humo])], tr('avFumigadas'));
+}
+
+/** Usa un potenciador sobre una abeja. */
+async function usarPotenciador(k, cual){
+  const b = S.panales[elegido][k]; if(!b) return;
+  cerrar('panal');
+  await firmar([aGranja('usarItem(address,uint256,uint8)', ['address','uint256','uint8'],
+    [TOKEN, ITEM[cual], b.lugar])], tr('avPotenciada'));
+}
+
+/** Anota quien lo invito. Se elige una sola vez, al entrar. */
+async function elegirInvitacion(quien){
+  await firmar([aGranja('elegirInvitacion(address)', ['address'],
+    [quien || '0x0000000000000000000000000000000000000000'])], tr('avInvitacion'));
 }
 
 async function guardarBuzz(){
@@ -2329,87 +2322,19 @@ function verGanar(){
   document.getElementById('btnCobrarG').disabled = S.ganado < 0.01;
 }
 
-const FICHAS_AP = [1, 5, 25];
-let ficha = 1;
-let apuestas = Object.fromEntries(SIMB.map(s => [s.id, 0]));
-let luz = 0;
 
-function pintarMaquina(){
-  document.getElementById('maquina').innerHTML = marco.map((si, i) => {
-    const s = SIMB[si], [f, c] = POS[i];
-    return '<div class="luz" id="luz'+i+'" style="grid-row:'+f+'; grid-column:'+c+'; color:'+s.col+'">' +
-           '<img src="'+ICO[s.ico]+'" alt=""><span class="mini">×'+s.x+'</span></div>';
-  }).join('') +
-  '<div class="visor"><div class="adentro" id="visor">' +
-  '<img class="logo" src="'+ICO.logo+'" alt="BUZZ FARM">' +
-  '<small>poné tu ficha y girá</small></div></div>';
-  prender(luz);
-}
-function prender(i, gano){
-  document.querySelectorAll('.luz').forEach(l => l.classList.remove('on','gana'));
-  const l = document.getElementById('luz'+i);
-  if(l) l.classList.add(gano ? 'gana' : 'on');
-  luz = i;
-}
-function visor(html, premio){
-  const v = document.getElementById('visor');
-  v.innerHTML = html;
-  v.parentElement.classList.toggle('premio', !!premio);
-}
 
-function pintarApuestas(){
-  document.getElementById('fichas').innerHTML = FICHAS_AP.map(f =>
-    '<button class="fichaBtn'+(f===ficha?' on':'')+'" onclick="ponerFicha('+f+')">Ficha '+f+'</button>').join('');
 
-  document.getElementById('apostador').innerHTML = ORDEN.map((id, i) => { const s = porId(id);
-    return '<button class="slot'+(apuestas[s.id]?' tiene':'')+'" id="slot'+s.id+'" onclick="apostarA(\''+s.id+'\')">' +
-    '<span class="chapa" style="background:'+(i % 2 ? '#4a4a55' : '#d4145a')+'">×'+s.x+'</span>' +
-    '<span class="cara"><img src="'+ICO[s.ico]+'" alt=""></span>' +
-    '<span class="led">'+red(apuestas[s.id])+'</span></button>'; }).join('');
 
-  const total = totalApostado();
-  const b = document.getElementById('btnSlot');
-  b.classList.toggle('gratis', caja().gratis > 0);
-  b.textContent = caja().gratis > 0 ? '★ GIRAR GRATIS ★'
-                : total ? 'GIRAR · ' + red(total) + ' ' + MONEDAS[moneda].nom : 'Poné una apuesta';
-  b.disabled = girando || total === 0 || pendiente > 0;
-  document.getElementById('btnLimpiar').disabled = girando || total === 0;
-  document.getElementById('saldoNec').textContent = red(S[moneda]);
-  document.querySelector('.saldo img').src = ICO[MONEDAS[moneda].ico];
-}
+
+
 function ponerFicha(f){ if(!girando){ ficha = f; pintarApuestas(); } }
-function totalApostado(){ return Object.values(apuestas).reduce((a,b) => a+b, 0); }
 
-function apostarA(id){
-  if(girando) return;
-  if(caja().gratis > 0){ avisar('El giro gratis va con la misma apuesta'); return; }
-  if(S[moneda] < ficha){ avisar('Te falta ' + MONEDAS[moneda].nom); return; }
-  S[moneda] -= ficha;
-  apuestas[id] += ficha;
-  pintarNumeros(); pintarApuestas();
-}
-function limpiarApuestas(){
-  if(girando || !totalApostado()) return;
-  if(caja().gratis > 0){ avisar('No podés sacar la apuesta del giro gratis'); return; }
-  const t = totalApostado();
-  S[moneda] += t;
-  apuestas = Object.fromEntries(SIMB.map(s => [s.id, 0]));
-  pintarNumeros(); pintarApuestas();
-  avisar('Te devolví ' + red(t) + ' ' + MONEDAS[moneda].nom);
-}
 
-function verReglas(si){
-  document.getElementById('reglas').classList.toggle('on', si);
-  if(si){
-    document.getElementById('tablaReglas').innerHTML = '<table>' +
-      SIMB.slice().reverse().map(s =>
-        '<tr><td><img src="'+ICO[s.ico]+'"></td><td>'+s.nom+'</td>' +
-        '<td style="color:'+s.col+'">×'+s.x+'</td>' +
-        '<td>'+s.n+' de 36<br><span style="color:#9a7fae; font-weight:600">'+(s.n/CASILLAS_TOTAL*100).toFixed(1)+'%</span></td></tr>').join('') +
-      '</table>';
 
-  }
-}
+
+
+
 
 const dormir = ms => new Promise(r => setTimeout(r, ms));
 
@@ -2438,17 +2363,8 @@ const dormir = ms => new Promise(r => setTimeout(r, ms));
    navegador: al recargar la app esa variable volvia a cero mientras el
    contrato seguia con la apuesta puesta, y la siguiente firma fallaba con
    "ya tenes una apuesta sin girar". */
-let ultimoPremio = 0;
 
-async function estadoMaquina(){
-  try{
-    const m = await leer(MAQUINA,'miEstado(address,address)',['address','address'],[TOKEN,yo],
-      ['bool','uint8','uint256','bool','bool','uint256','uint8','uint8']);
-    return { abierta:m[0], simbolo:Number(m[1]), apuesta:num(m[2]),
-             puedeGirar:m[3], vencida:m[4], premio:num(m[5]),
-             subidas:Number(m[6]), gratis:Number(m[7]) };
-  }catch(e){ return { abierta:false, puedeGirar:false, vencida:false, premio:0, gratis:0 }; }
-}
+
 
 
 /* ---- ganar, subir o cobrar ----
@@ -2456,220 +2372,23 @@ async function estadoMaquina(){
    cobra, o lo sube al 60% por x1,65 hasta cinco veces. Cada subida es una
    firma, porque el resultado sale del hash del bloque siguiente y eso no
    se puede saber antes. */
-const SUBIDAS_TOPE = 5, SUBIR_MULT = 1.65;
-let premioEsperando = 0, vanSubidas = 0;
 
-function abrirSubida(monto, van){
-  premioEsperando = monto;
-  vanSubidas = van;
 
-  document.getElementById('ganeTit').textContent =
-    van > 0 ? tr('vanSeguidas', van) : tr('ganaste');
-  document.getElementById('ganeMonto').textContent = '+' + red2(monto) + ' BUZZ';
-  document.getElementById('ganeSub').innerHTML = tr('subiTexto', SUBIR_MULT);
-  document.getElementById('btnSubir').textContent =
-    tr('subirA', red2(monto * SUBIR_MULT));
-  document.getElementById('btnCobrar2').textContent = tr('cobrarMonto', red2(monto));
-  document.getElementById('btnSubir').disabled = van >= SUBIDAS_TOPE;
-  document.getElementById('ganeNota').textContent =
-    van >= SUBIDAS_TOPE ? tr('topeSubidas', SUBIDAS_TOPE) : tr('subiAviso');
-
-  lluvia();
-  document.getElementById('hGane').classList.add('on');
-}
 
 /* Serpentina cayendo por toda la pantalla. Los papelitos salen de colores
    y tamanos distintos y caen a distinta velocidad, que es lo que hace que
    parezca de verdad y no una grilla. */
-const COLORES = ['#FFC107','#FF6B5C','#3DDC84','#4FC3F7','#B47CFF','#FFF8E7','#FF8F00'];
-let tSerp;
-function lluvia(){
-  const s = document.getElementById('serpentina');
-  const papeles = [];
-  for(let i = 0; i < 70; i++){
-    const izq = Math.random() * 100;
-    const dur = 2.2 + Math.random() * 2;
-    const esp = Math.random() * 1.4;
-    const col = COLORES[Math.floor(Math.random() * COLORES.length)];
-    const anc = 6 + Math.random() * 7;
-    const alt = 10 + Math.random() * 14;
-    papeles.push('<i style="left:' + izq.toFixed(1) + '%; background:' + col +
-      '; width:' + anc.toFixed(0) + 'px; height:' + alt.toFixed(0) + 'px' +
-      '; animation-duration:' + dur.toFixed(2) + 's' +
-      '; animation-delay:' + esp.toFixed(2) + 's"></i>');
-  }
-  s.innerHTML = papeles.join('');
-  s.classList.add('on');
-  clearTimeout(tSerp);
-  tSerp = setTimeout(() => { s.classList.remove('on'); s.innerHTML = ''; }, 5200);
-}
 
-async function subirPremio(){
-  const antes = premioEsperando;
-  document.getElementById('btnSubir').disabled = true;
-  document.getElementById('btnCobrar2').disabled = true;
-  document.getElementById('ganeSub').textContent = tr('aVerDonde');
 
-  const fue = await firmar([aMaquina('subir(address)', ['address'], [TOKEN])], tr('aVerDonde'));
-  await dormir(900);
-  document.getElementById('btnCobrar2').disabled = false;
-  if(!fue){ abrirSubida(antes, vanSubidas); return; }
 
-  const e = await estadoMaquina();
-  if(e.premio > 0){
-    abrirSubida(e.premio, e.subidas);
-  }else{
-    premioEsperando = 0;
-    document.getElementById('ganeTit').textContent = tr('eraLaOtra');
-    document.getElementById('ganeMonto').textContent = '0 BUZZ';
-    document.getElementById('ganeSub').textContent = '';
-    document.getElementById('btnSubir').disabled = true;
-    document.getElementById('btnCobrar2').textContent = tr('seguirJugando');
-    document.getElementById('btnCobrar2').onclick = () => {
-      cerrar('gane');
-      document.getElementById('btnCobrar2').onclick = cobrarPremio;
-    };
-  }
-}
 
-async function cobrarPremio(){
-  if(premioEsperando <= 0){ cerrar('gane'); return; }
-  const monto = premioEsperando;
-  premioEsperando = 0;
-  cerrar('gane');
-  await firmar([aMaquina('cobrarPremio(address)', ['address'], [TOKEN])],
-    tr('avCobraste', red2(monto)));
-}
 
-async function girarSlot(){
-  if(girando) return;
-  const total = totalApostado();
-  if(!total){ avisar(tr('avPrimero')); return; }
-  if(S.buzz < total){ avisar(tr('avFaltaBuzz')); return; }
 
-  girando = true;
-  document.getElementById('resuSlot').textContent = tr('girando');
 
-  /* El contrato dice si hay apuesta abierta y si todavia se puede girar.
-     Si vencio, no se manda girar: el propio apostar la limpia y devuelve
-     lo apostado. */
-  const est = await estadoMaquina();
-  const hayPendiente = est.abierta && est.puedeGirar;
-  if(est.abierta && est.vencida) avisar(tr('avVencida'));
-  const llamadas = [];
-  if(hayPendiente) llamadas.push(aMaquina('girar(address)', ['address'], [TOKEN]));
-  SIMB.forEach((s, i) => {
-    if(apuestas[s.id] > 0)
-      llamadas.push(aMaquina('apostar(address,uint8,uint256)', ['address','uint8','uint256'],
-        [TOKEN, i, aWei(apuestas[s.id])]));
-  });
 
-  /* El resultado ya esta decidido por el bloque, pero la rueda NO gira
-     mientras la firma esta en pantalla: esa ventana tapa todo el juego y
-     el jugador se pierde el giro. Primero se firma, se espera a que la
-     ventana se cierre, y recien ahi arranca. */
-  const anticipado = hayPendiente ? await calcularGiro() : null;
 
-  const fue = await firmar(llamadas, hayPendiente ? tr('girando') : tr('apuestaPuesta'));
-  await dormir(900);            // que termine de irse la ventana de la firma
 
-  if(anticipado !== null && fue) await mostrarGiro(anticipado);
 
-  if(!fue){
-    girando = false;
-    document.getElementById('resuSlot').textContent = tr('tocaSimbolo');
-    return;
-  }
-
-  if(hayPendiente){
-    if(anticipado === null) document.getElementById('resuSlot').textContent = tr('sinResultado');
-    /* Si gano, no se cobra solo: se le ofrece cobrar o subir el premio. */
-    if(ultimoPremio > 0) abrirSubida(ultimoPremio, 0);
-  }else{
-    document.getElementById('resuSlot').textContent = tr('primeraTirada');
-  }
-
-  girando = false;
-  limpiarApuestas(true);
-  bajarEstado();
-}
-
-/**
- * El resultado ya esta decidido antes de girar: sale del hash del bloque
- * siguiente al de la apuesta. Asi que en vez de buscar el evento —que
- * obliga a recorrer la cadena y el servidor publico rechaza— se hace la
- * misma cuenta que hace el contrato. Es instantaneo y da lo mismo.
- */
-async function calcularGiro(){
-  try{
-    const a = await leer(MAQUINA,'apuestas(address,address)',['address','address'],[TOKEN,yo],
-      ['uint64','uint256','uint8','bool','bool']);
-    if(!a || !a[3]) return null;                 // no hay apuesta abierta
-    const bloque = BigInt(a[1] === undefined ? 0 : a[0]);
-
-    const r = await fetch(RPC, {method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({jsonrpc:'2.0', id:1, method:'eth_getBlockByNumber',
-        params:['0x' + (bloque + 1n).toString(16), false]})});
-    const j = await r.json();
-    if(!j.result || !j.result.hash) return null;  // ese bloque todavia no existe
-
-    const semilla = ethers.solidityPackedKeccak256(
-      ['bytes32','address','uint64'], [j.result.hash, yo, bloque]);
-    const casilla = Number(BigInt(semilla) % 36n);
-
-    // a que simbolo le toca esa casilla, con el mismo reparto del contrato
-    const CASAS = [10, 6, 5, 3, 3, 3, 3, 2, 1];
-    let acum = 0, salio = 0;
-    for(let i = 0; i < 9; i++){
-      acum += CASAS[i];
-      if(casilla < acum){ salio = i; break; }
-    }
-    // cuanto paga, para mostrarlo
-    /* El contrato afina el pago con pagoBP; si no se toco, es la tabla
-       tal cual. Se lee para no mostrar un numero distinto al que paga. */
-    let pg = 10000;
-    try{
-      const q = await leer(MAQUINA,'pagoBP(address)',['address'],[TOKEN],['uint16']);
-      if(q && Number(q[0]) > 0) pg = Number(q[0]);
-    }catch(e){}
-    ultimoPremio = (salio === Number(a[2])) ? num(a[1]) * SIMB[salio].x * pg / 10000 : 0;
-    return salio;
-  }catch(e){ return null; }
-}
-
-/** Hace frenar la luz en una casilla del símbolo que salió en la cadena. */
-async function mostrarGiro(indice){
-  const g = SIMB[indice];
-  barajarMarco();
-  pintarMaquina();
-
-  const casillas = [];
-  marco.forEach((s, i) => { if(s === indice) casillas.push(i); });
-  const destino = casillas.length ? casillas[azar(casillas.length)] : azar(CASILLAS_TOTAL);
-
-  const N = CASILLAS_TOTAL;
-  const pasos = N * 2 + ((destino - luz + N) % N);
-  const crudo = [];
-  for(let i = 0; i < pasos; i++) crudo.push(1 + 40 * Math.pow(i / (pasos - 1), 6));
-  const escala = 5200 / crudo.reduce((a,b) => a+b, 0);
-  for(let i = 0; i < pasos; i++){
-    prender((luz + 1) % N);
-    await dormir(Math.max(28, crudo[i] * escala));
-  }
-  prender(destino, true);
-
-  const slot = document.getElementById('slot' + g.id);
-  if(ultimoPremio > 0){
-    if(slot) slot.classList.add('gano');
-    visor('<img src="'+ICO[g.ico]+'" alt=""><div class="x verde">+'+red2(ultimoPremio)+'</div><small>×'+g.x+'</small>', true);
-    document.getElementById('resuSlot').innerHTML =
-      '<span style="color:#3ddc84">' + tr('avSalio', g.nom, red2(ultimoPremio)) + '</span>';
-  }else{
-    visor('<img src="'+ICO[g.ico]+'" alt=""><div class="x">×'+g.x+'</div>', false);
-    document.getElementById('resuSlot').innerHTML =
-      '<span style="color:#9a7fae">' + tr('avSalioNada', g.nom) + '</span>';
-  }
-}
 
 
 /* El contrato avisa el resultado con un evento; se busca el último que
@@ -2693,7 +2412,7 @@ const SUBIDA  = 1.65;
 const TOPE_DOBLE = 5;
 let pendiente = 0, dobladas = 0, cartas = [];
 
-function abrirDoblar(){ /* la subida no esta en el contrato */ }
+
 
 /* la luz salta de una carta a la otra, cada vez más lento, hasta frenar.
    El resultado ya está sorteado antes de arrancar: la animación solo lo muestra */
@@ -2754,38 +2473,19 @@ async function elegirCarta(i){
       document.getElementById('doblar').classList.remove('on');
       document.getElementById('resuSlot').innerHTML =
         '<span style="color:#ff6b5c">La subida se llevó la ganancia</span>';
-      pintarApuestas();
-    }, 1700);
+        }, 1700);
   }
 }
 
-function cobrar(){ /* lo paga el contrato */ }
 
-// ---- la hoja ----
-async function verSuerte(){
-  verReglas(false);
-  /* Puede haber quedado un premio sin cobrar de una sesion anterior. */
-  try{
-    const m = await leer(MAQUINA,'miEstado(address,address)',['address','address'],[TOKEN,yo],
-      ['bool','uint8','uint256','bool','bool','uint256','uint8','uint8']);
-    if(m && num(m[5]) > 0){
-      await firmar([aMaquina('cobrarPremio(address)', ['address'], [TOKEN])],
-        tr('avCobraste', red2(num(m[5]))));
-    }
-  }catch(e){}
-  if(!marco.length) barajarMarco();
-  pintarMaquina();
-  pintarApuestas();
-}
+
+
 
 
 window.addEventListener('load', async () => {
   pintarIconos();
   pintarTextos();
   armarParcelas();
-  barajarMarco();      // el anillo de 36 casillas
-  pintarMaquina();     // sin esto la pantalla de la maquina abre vacia
-  pintarApuestas();
 
   for(let i = 0; i < 25 && !getMK(); i++) await new Promise(r => setTimeout(r, 100));
 
@@ -2824,9 +2524,6 @@ window.addEventListener('load', async () => {
 pintarIconos();
 pintarTextos();
 armarParcelas();
-barajarMarco();
-pintarMaquina();
-verSuerte();
 refrescar();
 
 </script>
