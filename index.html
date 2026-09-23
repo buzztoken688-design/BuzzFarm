@@ -190,13 +190,16 @@ body{
 .btnimg:active{transform:translateY(2px);}
 .btnimg[disabled]{filter:grayscale(.75) brightness(.75);}
 
-/* El de traer la granja va aparte, arriba de los tres, y a todo el ancho */
+/* El de traer la granja es verde liso y a todo el ancho: es temporal y
+   tiene que verse distinto de los tres de siempre. */
 #btnTraer{
   position:fixed; left:8px; right:8px; z-index:41;
   bottom:calc(132px + env(safe-area-inset-bottom));
-  height:50px;
+  height:50px; border:0; border-radius:14px; font-family:inherit;
+  font-size:14.5px; font-weight:800; color:#0B3D22;
+  background:linear-gradient(#7CFFB3,#2FBF6B); box-shadow:0 4px 0 #1B7A42;
 }
-#btnTraer span{left:30%; font-size:13px;}
+#btnTraer:active{transform:translateY(2px); box-shadow:0 2px 0 #1B7A42;}
 
 
 
@@ -632,15 +635,14 @@ body{
   <button class="btnimg" id="cosecharTodo" onclick="cosecharTodo()">
     <img data-bot="cosechar" alt=""><span id="txtCosechar" data-t="cosecharTodo"></span></button>
 </div>
-<button class="btnimg" id="btnTraer" onclick="traerGranja()" style="display:none">
-  <img data-bot="traer" alt=""><span data-t="traerGranja"></span></button>
+<button id="btnTraer" onclick="traerGranja()" style="display:none" data-t="traerGranja"></button>
 
 <div id="tablones">
   <button class="tablon on" onclick="irA(this,null)"><img data-ico="panal" alt=""><span data-t="navColmena">Colmena</span></button>
-  <button class="tablon" onclick="irA(this,'tienda')"><img data-nav="tienda" alt=""><span data-t="navTienda">Tienda</span></button>
-  <button class="tablon" onclick="irA(this,'mochila')"><img data-nav="mochila" alt=""><span data-t="navMochila">Mochila</span></button>
-  <button class="tablon" onclick="irA(this,'mercado')"><img data-nav="mercado" alt=""><span data-t="navMercado">Mercado</span></button>
-  <button class="tablon" onclick="irA(this,'ganar')"><img data-nav="ganar" alt=""><span data-t="navGanar">Ganar</span></button>
+  <button class="tablon" onclick="irA(this,'tienda')"><img data-ico="tienda" alt=""><span data-t="navTienda">Tienda</span></button>
+  <button class="tablon" onclick="irA(this,'mochila')"><img data-ico="mochila" alt=""><span data-t="navMochila">Mochila</span></button>
+  <button class="tablon" onclick="irA(this,'mercado')"><img data-ico="mercado" alt=""><span data-t="navMercado">Mercado</span></button>
+  <button class="tablon" onclick="irA(this,'ganar')"><img data-ico="buzz" alt=""><span data-t="navGanar">Ganar</span></button>
 </div>
 
 <div class="hoja" id="hTienda" onclick="if(event.target===this) cerrar('tienda')">
@@ -1653,13 +1655,6 @@ function plazo(seg){
 function pintarIconos(){
   document.querySelectorAll('[data-ico]').forEach(el => el.src = ICO[el.dataset.ico]);
   document.querySelectorAll('[data-bot]').forEach(el => el.src = BOT[el.dataset.bot]);
-  /* En la barra de abajo se usa el mismo dibujo pero recortado al escudo,
-     que es la parte de la izquierda del boton. */
-  document.querySelectorAll('[data-nav]').forEach(el => {
-    el.src = BOT[el.dataset.nav];
-    el.style.objectFit = 'cover';
-    el.style.objectPosition = 'left center';
-  });
 }
 
 /* Cada elemento con data-t toma su texto del diccionario. Así cambiar de
