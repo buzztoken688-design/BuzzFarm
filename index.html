@@ -169,10 +169,11 @@ body{
    mismo alto. El texto va encima de la imagen para que lo ponga la app y
    se traduzca, en vez de venir dibujado. */
 .acciones{
-  position:fixed; left:8px; right:8px; z-index:40;
-  bottom:calc(74px + env(safe-area-inset-bottom));
+  position:fixed; left:8px; right:8px; z-index:45;
+  bottom:calc(78px + env(safe-area-inset-bottom));
   display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px;
 }
+.acciones[style*="none"]{display:none !important;}
 .btnimg{
   position:relative; border:0; background:none; padding:0;
   font-family:inherit; height:52px; overflow:hidden; border-radius:12px;
@@ -627,15 +628,7 @@ body{
   </div>
 </div>
 
-<div class="acciones">
-  <button class="btnimg" onclick="alimentarTodas()">
-    <img data-bot="alimentar" alt=""><span data-t="alimentarTodas"></span></button>
-  <button class="btnimg" onclick="fumigarTodas()">
-    <img data-bot="fumigar" alt=""><span data-t="fumigarTodas"></span></button>
-  <button class="btnimg" id="cosecharTodo" onclick="cosecharTodo()">
-    <img data-bot="cosechar" alt=""><span id="txtCosechar" data-t="cosecharTodo"></span></button>
-</div>
-<button id="btnTraer" onclick="traerGranja()" style="display:none" data-t="traerGranja"></button>
+
 
 <div id="tablones">
   <button class="tablon on" onclick="irA(this,null)"><img data-ico="panal" alt=""><span data-t="navColmena">Colmena</span></button>
@@ -725,6 +718,19 @@ body{
 <div class="hoja" id="hPanal" onclick="if(event.target===this) cerrar('panal')">
   <div class="caja" id="cajaPanal"></div>
 </div>
+
+<!-- Los botones de tanda van aca, al nivel del documento: adentro del
+     juego quedaban dentro de un contenedor con transformaciones, y eso
+     rompe la posicion fija. -->
+<div class="acciones" id="acciones" style="display:none">
+  <button class="btnimg" onclick="alimentarTodas()">
+    <img data-bot="alimentar" alt=""><span data-t="alimentarTodas"></span></button>
+  <button class="btnimg" onclick="fumigarTodas()">
+    <img data-bot="fumigar" alt=""><span data-t="fumigarTodas"></span></button>
+  <button class="btnimg" id="cosecharTodo" onclick="cosecharTodo()">
+    <img data-bot="cosechar" alt=""><span id="txtCosechar" data-t="cosecharTodo"></span></button>
+</div>
+<button id="btnTraer" onclick="traerGranja()" style="display:none" data-t="traerGranja"></button>
 
 <div id="aviso"></div>
 <div id="serpentina"></div>
@@ -2521,6 +2527,7 @@ window.addEventListener('load', async () => {
 
     cargando.classList.add('fuera');
     document.getElementById('juego').style.display = '';
+  document.getElementById('acciones').style.display = '';
     setInterval(bajarEstado, 30000);
   }catch(e){
     cargando.innerHTML = 'No se pudo conectar.<br><br>' +
