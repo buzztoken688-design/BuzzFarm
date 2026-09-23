@@ -790,6 +790,8 @@ const ICO = {
    =================================================================== */
 const TEXTOS = {
   es: {
+    abrirGratis:'Abrir gratis',
+    gratis:'GRATIS',
     avVencida:'La apuesta anterior venció · te devolvemos lo apostado',
     abSuprema:'Suprema',
     avPolen:'+70 miel',
@@ -926,6 +928,8 @@ const TEXTOS = {
   },
 
   en: {
+    abrirGratis:'Open for free',
+    gratis:'FREE',
     avVencida:'Your previous bet expired · we are returning your stake',
     abSuprema:'Supreme',
     avPolen:'+70 honey',
@@ -1062,6 +1066,8 @@ const TEXTOS = {
   },
 
   pt: {
+    abrirGratis:'Abrir grátis',
+    gratis:'GRÁTIS',
     usar:'Usar',
     sinAbejasPuestas:'Você não tem abelhas colocadas.',
     humo:'Fumaça',
@@ -1552,7 +1558,10 @@ const PANALES = [
 /* El precio lo dice la granja: todos los panales valen lo mismo y el
    contrato ya hizo la cuenta. Antes esto lo calculaba la pantalla por su
    cuenta y mostraba un numero que no era el que se iba a cobrar. */
-const costoPanal = () => PRECIO_PANAL;
+/* El primer panal es gratis en el contrato, asi que la pantalla tiene que
+   decir lo mismo: antes mostraba el precio en todos y el que llegaba
+   pensaba que tenia que pagar para empezar. */
+const costoPanal = i => (i === 0 ? 0 : PRECIO_PANAL);
 const entra = () => true;
 
 // posición de cada panal sobre la imagen del campo, en % del lienzo
@@ -1665,8 +1674,10 @@ function pintarParcelas(){
     if(p.dataset.firma !== firma){
       p.dataset.firma = firma;
       if(i >= S.abiertos){
-        p.innerHTML = '<div class="candado"><div><div class="llave">🔒</div>' +
-          '<div class="precio">' + costoPanal() + ' BUZZ</div></div></div>';
+        p.innerHTML = '<div class="candado"><div><div class="llave">' +
+          (i === 0 ? '🎁' : '🔒') + '</div>' +
+          '<div class="precio">' + (i === 0 ? tr('gratis') : costoPanal(i) + ' BUZZ') +
+          '</div></div></div>';
       }else if(vivas.length === 0){
         p.innerHTML = '<span class="mas">+</span>';
       }else{
@@ -1753,10 +1764,12 @@ function tocar(i){
     const p = PANALES[i], puede = i === S.abiertos;
     caja.innerHTML = '<div class="tira"></div><h2>' + tr('panalCerrado') + '</h2>' +
       '<p class="sub">' + (puede ? tr('panalAbriloLibre') : tr('panalAnterior')) + '</p>' +
-      '<div class="dato"><span>' + tr('cuesta') + '</span><b>' + costoPanal() + ' BUZZ</b></div>' +
+      '<div class="dato"><span>' + tr('cuesta') + '</span><b>' +
+        (i === 0 ? tr('gratis') : costoPanal(i) + ' BUZZ') + '</b></div>' +
       '<div class="dato"><span>' + tr('tenesTotal') + '</span><b>' + red(S.buzz) + ' BUZZ</b></div>' +
       '<button class="grande" onclick="abrirPanal()"' +
-        (puede && S.buzz >= costoPanal() ? '' : ' disabled') + '>' + tr('abrirPor', costoPanal()) + '</button>' +
+        (puede && S.buzz >= costoPanal(i) ? '' : ' disabled') + '>' +
+        (i === 0 ? tr('abrirGratis') : tr('abrirPor', costoPanal(i))) + '</button>' +
       '<button class="grande gris" onclick="cerrar(\'panal\')">' + tr('cerrar') + '</button>';
     abrir('panal'); return;
   }
