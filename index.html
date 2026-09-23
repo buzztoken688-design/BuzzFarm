@@ -148,7 +148,11 @@ body{
 .tarjeta .nom{font-size:8px; color:var(--tenue); letter-spacing:.8px;}
 #perfilCard{flex:0 0 auto;}
 #perfilCard .val{font-size:12.5px;}
-.recursos{flex:1; display:flex; gap:6px; justify-content:flex-end; flex-wrap:wrap;}
+/* Sin envolver: al envolverse, la segunda linea de tarjetas quedaba
+   encima de los botones de abajo. */
+.recursos{flex:1; display:flex; gap:6px; justify-content:flex-end; min-width:0;}
+.recursos .tarjeta{min-width:0; padding:6px 7px;}
+.recursos .val{font-size:15px;}
 
 /* ---------- botonera ---------- */
 #tablones{ gap:3px;
@@ -169,8 +173,9 @@ body{
    mismo alto. El texto va encima de la imagen para que lo ponga la app y
    se traduzca, en vez de venir dibujado. */
 .acciones{
+  position:relative; z-index:11; clear:both;
   display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px;
-  margin-top:7px; padding:0 2px;
+  margin-top:12px; padding:0 1px;
 }
 .btnimg{
   position:relative; border:0; background:none; padding:0;
