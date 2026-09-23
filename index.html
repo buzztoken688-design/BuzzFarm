@@ -169,13 +169,12 @@ body{
    mismo alto. El texto va encima de la imagen para que lo ponga la app y
    se traduzca, en vez de venir dibujado. */
 .acciones{
-  position:absolute; left:8px; right:8px; z-index:12;
-  bottom:calc(72px + env(safe-area-inset-bottom));
   display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px;
+  margin-top:7px; padding:0 2px;
 }
 .btnimg{
   position:relative; border:0; background:none; padding:0;
-  font-family:inherit; height:52px; overflow:hidden; border-radius:12px;
+  font-family:inherit; height:46px; overflow:hidden; border-radius:11px;
 }
 .btnimg img{
   position:absolute; inset:0; width:100%; height:100%;
@@ -193,11 +192,10 @@ body{
 /* El de traer la granja es verde liso y a todo el ancho: es temporal y
    tiene que verse distinto de los tres de siempre. */
 #btnTraer{
-  position:absolute; left:8px; right:8px; z-index:13;
-  bottom:calc(130px + env(safe-area-inset-bottom));
-  height:50px; border:0; border-radius:14px; font-family:inherit;
-  font-size:14.5px; font-weight:800; color:#0B3D22;
-  background:linear-gradient(#7CFFB3,#2FBF6B); box-shadow:0 4px 0 #1B7A42;
+  display:block; width:100%; margin-top:7px;
+  height:46px; border:0; border-radius:13px; font-family:inherit;
+  font-size:14px; font-weight:800; color:#0B3D22;
+  background:linear-gradient(#7CFFB3,#2FBF6B); box-shadow:0 3px 0 #1B7A42;
 }
 #btnTraer:active{transform:translateY(2px); box-shadow:0 2px 0 #1B7A42;}
 
@@ -569,16 +567,6 @@ body{
 #hGane .caja{position:relative;}
 .fila4{display:flex; gap:7px; margin-top:9px;}
 .fila4 .acc{flex:1; padding:13px 0; font-size:15px; border-radius:12px;}
-.acciones{position:fixed; left:10px; right:10px; z-index:40;
-  bottom:calc(126px + env(safe-area-inset-bottom)); display:flex; gap:8px;}
-.acciones .accion2{
-  flex:1; display:flex; align-items:center; justify-content:center; gap:6px;
-  border:0; border-radius:13px; padding:11px 8px; font-family:inherit;
-  font-size:13px; font-weight:800; color:#3D1D06;
-  background:linear-gradient(#FFD54F,#FFB300); box-shadow:0 3px 0 #A85D00;
-}
-.acciones .accion2:active{transform:translateY(2px); box-shadow:0 1px 0 #A85D00;}
-.acciones .accion2 img{width:20px; height:20px; object-fit:contain;}
 #btnTraer{background:linear-gradient(#7CFFB3,#2FBF6B); box-shadow:0 4px 0 #1B7A42;}
 .resu{min-height:19px; font-size:12.5px; font-weight:800; margin:2px 0 10px;}
 /* mientras conecta */
@@ -625,21 +613,20 @@ body{
       </div>
     </div>
   </div>
+
+  <!-- Los tres de tanda, adentro del HUD: es lo unico que se ve seguro. -->
+  <div class="acciones">
+    <button class="btnimg" onclick="cosecharTodo()" id="cosecharTodo">
+      <img data-bot="cosechar" alt=""><span id="txtCosechar" data-t="cosecharTodo"></span></button>
+    <button class="btnimg" onclick="alimentarTodas()">
+      <img data-bot="alimentar" alt=""><span data-t="alimentarTodas"></span></button>
+    <button class="btnimg" onclick="fumigarTodas()">
+      <img data-bot="fumigar" alt=""><span data-t="fumigarTodas"></span></button>
+  </div>
+  <button id="btnTraer" onclick="traerGranja()" style="display:none" data-t="traerGranja"></button>
 </div>
 
 
-
-<!-- Los botones de tanda, justo arriba de la barra. Van adentro del
-     juego y posicionados igual que #tablones, que es lo que funciona. -->
-<div class="acciones">
-  <button class="btnimg" onclick="alimentarTodas()">
-    <img data-bot="alimentar" alt=""><span data-t="alimentarTodas"></span></button>
-  <button class="btnimg" onclick="fumigarTodas()">
-    <img data-bot="fumigar" alt=""><span data-t="fumigarTodas"></span></button>
-  <button class="btnimg" id="cosecharTodo" onclick="cosecharTodo()">
-    <img data-bot="cosechar" alt=""><span id="txtCosechar" data-t="cosecharTodo"></span></button>
-</div>
-<button id="btnTraer" onclick="traerGranja()" style="display:none" data-t="traerGranja"></button>
 
 <div id="tablones">
   <button class="tablon on" onclick="irA(this,null)"><img data-ico="panal" alt=""><span data-t="navColmena">Colmena</span></button>
