@@ -172,25 +172,25 @@ body{
 /* Los tres botones de tanda: una fila, los tres del mismo ancho y del
    mismo alto. El texto va encima de la imagen para que lo ponga la app y
    se traduzca, en vez de venir dibujado. */
+/* Los tres de tanda. La imagen va de FONDO del boton y el texto adentro
+   como contenido normal: poner el texto con posicion absoluta dentro de un
+   <button> se descoloca en el navegador de World App. */
 .acciones{
-  position:relative; z-index:11; clear:both;
   display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px;
-  margin-top:12px; padding:0 1px;
+  margin-top:26px; position:relative; z-index:11;
 }
 .btnimg{
-  position:relative; border:0; background:none; padding:0;
-  font-family:inherit; height:46px; overflow:hidden; border-radius:11px;
+  height:50px; border:0; border-radius:12px; padding:0 6px 0 32%;
+  font-family:inherit; font-size:11.5px; font-weight:800; line-height:1.15;
+  color:#FFF8E7; text-shadow:0 1px 3px rgba(0,0,0,.9);
+  background-repeat:no-repeat; background-size:100% 100%;
+  display:flex; align-items:center; justify-content:center; text-align:center;
 }
-.btnimg img{
-  position:absolute; inset:0; width:100%; height:100%;
-  object-fit:fill; display:block;
-}
-.btnimg span{
-  position:absolute; left:33%; right:4%; top:50%; transform:translateY(-50%);
-  font-size:11px; font-weight:800; color:#FFF8E7; line-height:1.1;
-  text-shadow:0 1px 3px rgba(0,0,0,.9); text-align:center;
-  display:block; word-break:break-word;
-}
+.btnimg:active{transform:translateY(2px);}
+.btnimg[disabled]{filter:grayscale(.75) brightness(.75);}
+
+
+
 .btnimg:active{transform:translateY(2px);}
 .btnimg[disabled]{filter:grayscale(.75) brightness(.75);}
 
@@ -621,12 +621,9 @@ body{
 
   <!-- Los tres de tanda, adentro del HUD: es lo unico que se ve seguro. -->
   <div class="acciones">
-    <button class="btnimg" onclick="cosecharTodo()" id="cosecharTodo">
-      <img data-bot="cosechar" alt=""><span id="txtCosechar" data-t="cosecharTodo"></span></button>
-    <button class="btnimg" onclick="alimentarTodas()">
-      <img data-bot="alimentar" alt=""><span data-t="alimentarTodas"></span></button>
-    <button class="btnimg" onclick="fumigarTodas()">
-      <img data-bot="fumigar" alt=""><span data-t="fumigarTodas"></span></button>
+    <button class="btnimg" data-bot="cosechar" onclick="cosecharTodo()" id="cosecharTodo"><span id="txtCosechar" data-t="cosecharTodo"></span></button>
+    <button class="btnimg" data-bot="alimentar" onclick="alimentarTodas()"><span data-t="alimentarTodas"></span></button>
+    <button class="btnimg" data-bot="fumigar" onclick="fumigarTodas()"><span data-t="fumigarTodas"></span></button>
   </div>
   <button id="btnTraer" onclick="traerGranja()" style="display:none" data-t="traerGranja"></button>
 </div>
@@ -1650,7 +1647,9 @@ function plazo(seg){
 // ---- iconos del cascarón ----
 function pintarIconos(){
   document.querySelectorAll('[data-ico]').forEach(el => el.src = ICO[el.dataset.ico]);
-  document.querySelectorAll('[data-bot]').forEach(el => el.src = BOT[el.dataset.bot]);
+  document.querySelectorAll('[data-bot]').forEach(el => {
+    el.style.backgroundImage = 'url(' + BOT[el.dataset.bot] + ')';
+  });
 }
 
 /* Cada elemento con data-t toma su texto del diccionario. Así cambiar de
