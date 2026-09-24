@@ -1518,11 +1518,16 @@ async function bajarCatalogo(){
                     comida:num(r[3]), dias:Number(r[4]),
                     porciones:Number(r[5]), activa:r[6] });
   }
-  /* El contrato tiene abejas viejas apagadas al principio: solo se toman
-     las que siguen activas, en el orden en que se cargaron. */
+  /* El contrato guarda las tandas viejas apagadas y despues las nuevas, las
+     dos en el mismo orden de trece. Hay que reconocer TODAS, aunque las
+     viejas ya no se vendan: los jugadores siguen teniendo abejas de esos
+     tipos y si no se las reconoce aparecen todas como Obrera. */
   const orden = Object.keys(ABEJAS);
-  const vivas = catalogo.filter(c => c.activa);
-  vivas.forEach((c, i) => {
+  catalogo.forEach(c => { CLAVE_DE[c.id] = orden[c.id % orden.length]; });
+
+  /* Para la Tienda, en cambio, solo cuentan las que siguen activas: son las
+     que se pueden comprar y las que traen los precios de hoy. */
+  catalogo.filter(c => c.activa).forEach((c, i) => {
     const k = orden[i]; if(!k) return;
     const a = ABEJAS[k];
     a.idCadena = c.id; a.costo = c.costo; a.miel = c.miel;
@@ -1531,7 +1536,6 @@ async function bajarCatalogo(){
     a.gasta = c.costo + c.comida * c.dias;
     a.saca  = c.miel * c.dias / MIEL_POR_BUZZ;
     a.neto  = a.saca - a.gasta;
-    CLAVE_DE[c.id] = k;
   });
 }
 const CLAVE_DE = {};
