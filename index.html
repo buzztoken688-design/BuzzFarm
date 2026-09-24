@@ -870,7 +870,6 @@ const TEXTOS = {
     abCosmica:'Cósmica',
     abDesc:'Vive {0} días · {1} miel por día · come {2} BUZZ por día',
     abDesc2:'<br>Gastás {0} y recuperás {1} BUZZ: <b style="color:var(--savia)">+{2}</b>',
-    abInmune:'la plaga no la toca',
     cartelMaquina:'36 CASILLAS · TODAS PAGAN IGUAL · ¡SUERTE PURA!',
     polen:'Polen',
     colmena:'Colmena', panales:'{0}/{1} panales',
@@ -1026,7 +1025,6 @@ const TEXTOS = {
     abCosmica:'Cosmic',
     abDesc:'Lives {0} days · {1} honey per day · eats {2} BUZZ per day',
     abDesc2:'<br>You spend {0} and get back {1} BUZZ: <b style="color:var(--savia)">+{2}</b>',
-    abInmune:'pests do not touch her',
     cartelMaquina:'36 SQUARES · ALL PAY THE SAME · PURE LUCK!',
     polen:'Pollen',
     colmena:'Hive', panales:'{0}/{1} cells',
@@ -1199,7 +1197,6 @@ const TEXTOS = {
     abCosmica:'Cósmica',
     abDesc:'Vive {0} dias · {1} mel por dia · come {2} BUZZ por dia',
     abDesc2:'<br>Você gasta {0} e recupera {1} BUZZ: <b style="color:var(--savia)">+{2}</b>',
-    abInmune:'a praga não a pega',
     cartelMaquina:'36 CASAS · TODAS PAGAM IGUAL · PURA SORTE!',
     polen:'Pólen',
     colmena:'Colmeia', panales:'{0}/{1} favos',
@@ -1575,10 +1572,10 @@ const ABEJAS = {
   ignea:      {ico:'ignea',      rareza:'epica',      costo:62,  dias:11, miel:90,  comida:2.16},
   dulce:      {ico:'dulce',      rareza:'epica',      costo:70,  dias:12, miel:97,  comida:2.46},
   reina:      {ico:'reina',      rareza:'legendaria', costo:99,  dias:13, miel:131, comida:3.47},
-  guardiana:  {ico:'guardiana',  rareza:'legendaria', costo:127, dias:13, miel:167, comida:4.43, inmune:true},
-  cristal:    {ico:'cristal',    rareza:'legendaria', costo:160, dias:14, miel:200, comida:5.59, inmune:true},
-  cosmica:    {ico:'cosmica',    rareza:'legendaria', costo:204, dias:14, miel:255, comida:7.13, inmune:true},
-  suprema:    {ico:'suprema',    rareza:'legendaria', costo:5000, dias:16, miel:5750, comida:175, inmune:true}
+  guardiana:  {ico:'guardiana',  rareza:'legendaria', costo:127, dias:13, miel:167, comida:4.43},
+  cristal:    {ico:'cristal',    rareza:'legendaria', costo:160, dias:14, miel:200, comida:5.59},
+  cosmica:    {ico:'cosmica',    rareza:'legendaria', costo:204, dias:14, miel:255, comida:7.13},
+  suprema:    {ico:'suprema',    rareza:'legendaria', costo:5000, dias:16, miel:5750, comida:175}
 };
 const NOMBRE_ABEJA = {
   obrera:'abObrera', selvatica:'abSelvatica', mielera:'abMielera', florista:'abFlorista',
@@ -1593,11 +1590,10 @@ for(const k in ABEJAS){
   a.gasta = a.costo + a.comida * a.dias;
   a.saca  = a.miel * a.dias / MIEL_POR_BUZZ;
   a.neto  = a.saca - a.gasta;
-  if(a.inmune) a.rasgo = 'la plaga no la toca';
   Object.defineProperty(a, 'desc', { get(){
     return tr('abDesc', a.dias, a.miel, red(a.comida))
          + tr('abDesc2', red(a.gasta), red(a.saca), red(a.neto))
-         + (a.inmune ? '<br><i style="color:'+a.color+'">' + tr('abInmune') + '</i>' : '');
+         ;
   }});
 }
 
@@ -2260,7 +2256,7 @@ setInterval(() => {
 
   const cand = [];
   S.panales.forEach(par => par.forEach(b => {
-    if(!b || b.plaga || ABEJAS[b.tipo].inmune) return;
+    if(!b || b.plaga) return;
     if(b.comeHasta <= t) return;                  // a la que no come, no se le suma
     if(tocadasAyer.includes(b.id)) return;        // ayer le tocó, hoy no
     if(tocadasHoy.includes(b.id)) return;         // y nunca dos veces el mismo día
