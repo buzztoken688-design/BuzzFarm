@@ -713,6 +713,21 @@ body{
     <button class="grande gris" id="btnCobrarG" onclick="cobrarGanado()" data-t="cobrarGanado"></button>
     <button class="grande gris" id="btnSacarG" onclick="sacarGuardado()" data-t="sacarBtn"></button>
     <p class="nota" data-t="notaGanar"></p>
+
+    <h2 style="margin-top:22px" data-t="refTit"></h2>
+    <p class="sub" data-t="refSub"></p>
+    <div class="dato"><span data-t="refTraidos"></span><b id="refCuantos">0</b></div>
+    <div class="dato"><span data-t="refPremio"></span><b id="refPremio">—</b></div>
+
+    <div style="background:rgba(0,0,0,.35); border:1.5px solid var(--tabla-borde);
+                border-radius:12px; padding:12px; margin:10px 0">
+      <div style="font-size:11.5px; color:var(--tenue); margin-bottom:6px" data-t="refTuCodigo"></div>
+      <div id="refCodigo" style="font-family:ui-monospace,monospace; font-size:11.5px;
+           color:var(--miel); word-break:break-all; line-height:1.5"></div>
+    </div>
+    <button class="grande" onclick="copiarCodigo()" data-t="refCopiar"></button>
+    <p class="nota" data-t="refComo"></p>
+
     <button class="grande gris" onclick="cerrar('ganar')" data-t="cerrar"></button></div>
 </div>
 
@@ -723,6 +738,17 @@ body{
 
 <div class="hoja" id="hPanal" onclick="if(event.target===this) cerrar('panal')">
   <div class="caja" id="cajaPanal"></div>
+</div>
+
+<div class="hoja" id="hInvita">
+  <div class="caja">
+    <div class="tira"></div>
+    <h2 data-t="invitaTit"></h2>
+    <p class="sub" data-t="invitaSub"></p>
+    <input id="inInvita" type="text" data-tph="invitaPega" autocapitalize="off" spellcheck="false">
+    <button class="grande" onclick="aceptarInvitacion()" data-t="invitaAceptar"></button>
+    <button class="grande gris" onclick="aceptarInvitacion(true)" data-t="invitaSolo"></button>
+  </div>
 </div>
 
 <div class="hoja" id="hDevol">
@@ -812,6 +838,23 @@ const ICO = {
    =================================================================== */
 const TEXTOS = {
   es: {
+    potSolo:'Solo sirven en la Suprema: duplican lo que la abeja ya produce.',
+    invitaTit:'¿Alguien te invitó?',
+    invitaAceptar:'Sí, me invitaron',
+    invitaSolo:'Entré por mi cuenta',
+    invitaPega:'Pegá la wallet de quien te invitó',
+    invitaSub:'Si llegaste por alguien, pegá su wallet y va a cobrar su premio cuando compres tu primera abeja. Esto se elige una sola vez.',
+    refTit:'Invitá amigos',
+    refTraidos:'Amigos que trajiste',
+    refPremio:'Te pagan por cada uno',
+    refTuCodigo:'Tu código es tu wallet',
+    refCopiar:'Copiar mi código',
+    refSub:'Compartí tu wallet. Cuando alguien entre con ella y compre su primera abeja, cobrás.',
+    refComo:'El premio se paga cuando tu invitado compra su primera abeja, no al anotarse.',
+    refCopiado:'Código copiado',
+    refMala:'Esa wallet no es válida',
+    refVos:'No podés invitarte a vos mismo',
+    refSinNadie:'Listo, entraste por tu cuenta',
     devolTit:'Te devolvemos esto',
     devolBtn:'Cobrar',
     devolLuego:'Después',
@@ -972,6 +1015,23 @@ const TEXTOS = {
   },
 
   en: {
+    potSolo:'Only worth it on the Suprema: they double what the bee already makes.',
+    invitaTit:'Did someone invite you?',
+    invitaAceptar:'Yes, I was invited',
+    invitaSolo:'I found it myself',
+    invitaPega:'Paste the wallet of who invited you',
+    invitaSub:'If someone brought you here, paste their wallet and they get their reward when you buy your first bee. You choose this only once.',
+    refTit:'Invite friends',
+    refTraidos:'Friends you brought',
+    refPremio:'You get for each one',
+    refTuCodigo:'Your code is your wallet',
+    refCopiar:'Copy my code',
+    refSub:'Share your wallet. When someone joins with it and buys their first bee, you get paid.',
+    refComo:'The reward is paid when your friend buys their first bee, not when they sign up.',
+    refCopiado:'Code copied',
+    refMala:'That wallet is not valid',
+    refVos:'You cannot invite yourself',
+    refSinNadie:'Done, you joined on your own',
     devolTit:'This is yours',
     devolBtn:'Claim',
     devolLuego:'Later',
@@ -1132,6 +1192,23 @@ const TEXTOS = {
   },
 
   pt: {
+    potSolo:'Só valem na Suprema: duplicam o que a abelha já produz.',
+    invitaTit:'Alguém te convidou?',
+    invitaAceptar:'Sim, me convidaram',
+    invitaSolo:'Entrei por conta própria',
+    invitaPega:'Cole a carteira de quem te convidou',
+    invitaSub:'Se você chegou por alguém, cole a carteira dessa pessoa e ela recebe o prêmio quando você comprar sua primeira abelha. Isto se escolhe uma só vez.',
+    refTit:'Convide amigos',
+    refTraidos:'Amigos que você trouxe',
+    refPremio:'Você ganha por cada um',
+    refTuCodigo:'Seu código é sua carteira',
+    refCopiar:'Copiar meu código',
+    refSub:'Compartilhe sua carteira. Quando alguém entrar com ela e comprar a primeira abelha, você recebe.',
+    refComo:'O prêmio se paga quando seu convidado compra a primeira abelha, não ao se cadastrar.',
+    refCopiado:'Código copiado',
+    refMala:'Essa carteira não é válida',
+    refVos:'Você não pode se convidar',
+    refSinNadie:'Pronto, você entrou por conta própria',
     devolTit:'Devolvemos isto',
     devolBtn:'Resgatar',
     devolLuego:'Depois',
@@ -1441,8 +1518,11 @@ async function bajarCatalogo(){
                     comida:num(r[3]), dias:Number(r[4]),
                     porciones:Number(r[5]), activa:r[6] });
   }
+  /* El contrato tiene abejas viejas apagadas al principio: solo se toman
+     las que siguen activas, en el orden en que se cargaron. */
   const orden = Object.keys(ABEJAS);
-  catalogo.forEach((c, i) => {
+  const vivas = catalogo.filter(c => c.activa);
+  vivas.forEach((c, i) => {
     const k = orden[i]; if(!k) return;
     const a = ABEJAS[k];
     a.idCadena = c.id; a.costo = c.costo; a.miel = c.miel;
@@ -1496,6 +1576,15 @@ async function bajarEstado(){
         ['address','address','uint256'], [TOKEN, yo, ITEM[k]], ['uint256']);
       if(b) S.insumos[k] = Number(b[0]);
     }
+
+    /* Referidos: cuantos trajo, cuanto paga y si ya eligio al entrar. */
+    const [refs, eligio] = await Promise.all([
+      leerSeguro(GRANJA,'referidos(address)',['address'],[yo],['uint256']),
+      leerSeguro(GRANJA,'yaEligio(address)',['address'],[yo],['bool'])
+    ]);
+    S.referidos = refs ? Number(refs[0]) : 0;
+    S.yaEligio  = eligio ? eligio[0] : true;
+    if(gj) S.premioRef = num(gj[2]);
 
     /* Lo que le quedo esperando de la migracion anterior. */
     const dv = await leerSeguro(DEVOL,'miDevolucion(address)',['address'],[yo],
@@ -1599,19 +1688,19 @@ for(const k in RAREZAS){
    El margen sube con la rareza: 12% las comunes, 14% raras, 16% épicas,
    18% legendarias, siempre sobre lo que el jugador gasta. */
 const ABEJAS = {
-  obrera:     {ico:'obrera',     rareza:'comun',      costo:11,  dias:7,  miel:22,  comida:0.39},
-  selvatica:  {ico:'selvatica',  rareza:'comun',      costo:18,  dias:8,  miel:32,  comida:0.62},
-  mielera:    {ico:'mielera',    rareza:'rara',       costo:26,  dias:9,  miel:44,  comida:0.92},
-  florista:   {ico:'florista',   rareza:'rara',       costo:33,  dias:9,  miel:55,  comida:1.16},
-  minera:     {ico:'minera',     rareza:'rara',       costo:40,  dias:10, miel:61,  comida:1.39},
-  escarcha:   {ico:'escarcha',   rareza:'epica',      costo:53,  dias:11, miel:77,  comida:1.85},
-  ignea:      {ico:'ignea',      rareza:'epica',      costo:62,  dias:11, miel:90,  comida:2.16},
-  dulce:      {ico:'dulce',      rareza:'epica',      costo:70,  dias:12, miel:97,  comida:2.46},
-  reina:      {ico:'reina',      rareza:'legendaria', costo:99,  dias:13, miel:131, comida:3.47},
-  guardiana:  {ico:'guardiana',  rareza:'legendaria', costo:127, dias:13, miel:167, comida:4.43},
-  cristal:    {ico:'cristal',    rareza:'legendaria', costo:160, dias:14, miel:200, comida:5.59},
-  cosmica:    {ico:'cosmica',    rareza:'legendaria', costo:204, dias:14, miel:255, comida:7.13},
-  suprema:    {ico:'suprema',    rareza:'legendaria', costo:5000, dias:16, miel:5750, comida:175}
+  obrera:     {ico:'obrera',     rareza:'comun',      costo:11,  dias:7,  miel:19.9,  comida:0.399},
+  selvatica:  {ico:'selvatica',  rareza:'comun',      costo:18,  dias:8,  miel:28.5,  comida:0.571},
+  mielera:    {ico:'mielera',    rareza:'rara',       costo:26,  dias:9,  miel:36.7,  comida:0.733},
+  florista:   {ico:'florista',   rareza:'rara',       costo:33,  dias:9,  miel:46.5,  comida:0.930},
+  minera:     {ico:'minera',     rareza:'rara',       costo:40,  dias:10, miel:50.7,  comida:1.015},
+  escarcha:   {ico:'escarcha',   rareza:'epica',      costo:53,  dias:11, miel:61.4,  comida:1.229},
+  ignea:      {ico:'ignea',      rareza:'epica',      costo:62,  dias:11, miel:71.9,  comida:1.437},
+  dulce:      {ico:'dulce',      rareza:'epica',      costo:70,  dias:12, miel:74.4,  comida:1.488},
+  reina:      {ico:'reina',      rareza:'legendaria', costo:99,  dias:13, miel:98.0, comida:1.961},
+  guardiana:  {ico:'guardiana',  rareza:'legendaria', costo:127, dias:13, miel:125.8, comida:2.516},
+  cristal:    {ico:'cristal',    rareza:'legendaria', costo:160, dias:14, miel:147.1, comida:2.943},
+  cosmica:    {ico:'cosmica',    rareza:'legendaria', costo:204, dias:14, miel:187.6, comida:3.752},
+  suprema:    {ico:'suprema',    rareza:'legendaria', costo:5000, dias:16, miel:4023.4, comida:80.469}
 };
 const NOMBRE_ABEJA = {
   obrera:'abObrera', selvatica:'abSelvatica', mielera:'abMielera', florista:'abFlorista',
@@ -1694,6 +1783,7 @@ const S = {
   mochila:Object.fromEntries(Object.keys(ABEJAS).map(k => [k, k === 'obrera' ? 1 : 0])),
   insumos:{humo:0, pot1h:0, pot6h:0, pot24h:0, medallon:0},
   puedeTraer:false, devolucion:0, devolPuede:false,
+  referidos:0, premioRef:0, yaEligio:true,
   abiertos:0,                 // los abre el jugador, todos se pagan
   panales:Array.from({length:6}, () => [null, null])
 };
@@ -1937,10 +2027,14 @@ function bloqueLugar(i, k, b){
     '<button class="grande gris" onclick="alimentar(' + k + ')"' + (b.puedeComer ? '' : ' disabled') + '>' +
       (b.puedeComer ? tr('alimentarDias', 1, red2(a.comida * cuantas)) : tr('yaComio')) + '</button>' +
 
-    /* los tres potenciadores, con lo que tiene de cada uno */
-    '<div class="fila4" style="margin-top:6px">' +
-      pot(k, 'pot1h', '1h') + pot(k, 'pot6h', '6h') + pot(k, 'pot24h', '24h') +
-    '</div>' +
+    /* Los potenciadores solo valen la pena en la Suprema: duplican lo que
+       la abeja ya produce, y en las chicas eso es menos que el precio del
+       potenciador. En las demas ni se muestran. */
+    (b.tipo === 'suprema'
+      ? '<div class="fila4" style="margin-top:6px">' +
+        pot(k, 'pot1h', '1h') + pot(k, 'pot6h', '6h') + pot(k, 'pot24h', '24h') +
+        '</div>'
+      : '') +
 
     /* fundir: solo en el lugar par del panal y si las dos se pueden */
     (k === 0 && b.puedeFundir && S.panales[i][1] && S.panales[i][1].puedeFundir &&
@@ -2220,7 +2314,7 @@ async function retirar(parte){
 }
 
 // ---- hojas ----
-const HOJAS = {devol:'hDevol', tienda:'hTienda', mochila:'hMochila', mercado:'hMercado',
+const HOJAS = {invita:'hInvita', devol:'hDevol', tienda:'hTienda', mochila:'hMochila', mercado:'hMercado',
                ganar:'hGanar', panal:'hPanal'};
 /* La hoja se muestra PRIMERO y despues se pinta. Antes era al reves: si
    el pintado se rompia, la pantalla nunca aparecia y parecia que el boton
@@ -2338,6 +2432,30 @@ async function depositar(){
 /* ---- lo nuevo de la granja ---- */
 
 /** Trae lo que el jugador tenia en la granja anterior. */
+/* ---- referidos ----
+   La wallet de quien invita ES el codigo: son numeros fijos, asi que no
+   hace falta inventar otro ni guardarlo en ningun lado. */
+
+async function aceptarInvitacion(solo){
+  const CERO = '0x0000000000000000000000000000000000000000';
+  let quien = CERO;
+  if(!solo){
+    quien = (document.getElementById('inInvita').value || '').trim();
+    if(!/^0x[0-9a-fA-F]{40}$/.test(quien)){ avisar(tr('refMala')); return; }
+    if(quien.toLowerCase() === yo.toLowerCase()){ avisar(tr('refVos')); return; }
+  }
+  cerrar('invita');
+  await firmar([aGranja('elegirInvitacion(address)', ['address'], [quien])],
+    solo ? tr('refSinNadie') : tr('avInvitacion'));
+  S.yaEligio = true;
+}
+
+function copiarCodigo(){
+  const t = yo;
+  if(navigator.clipboard) navigator.clipboard.writeText(t).catch(() => {});
+  avisar(tr('refCopiado'));
+}
+
 /** Cobra lo que quedo esperando de la migracion anterior. */
 async function cobrarDevolucion(){
   if(!S.devolPuede){ cerrar('devol'); return; }
@@ -2409,6 +2527,9 @@ async function cobrarGanado(){
     tr('avCobrado', red2(S.ganado)));
 }
 function verGanar(){
+  document.getElementById('refCuantos').textContent = S.referidos || 0;
+  document.getElementById('refPremio').textContent = red2(S.premioRef || 0) + ' BUZZ';
+  document.getElementById('refCodigo').textContent = yo || '';
   document.getElementById('gGuardado').textContent = red2(S.guardado) + ' BUZZ';
   document.getElementById('gParte').textContent = (tuParte()*100).toFixed(2) + '%';
   document.getElementById('gGanado').textContent = red2(S.ganado) + ' BUZZ';
@@ -2611,6 +2732,7 @@ window.addEventListener('load', async () => {
     /* Si tiene plata esperando, se le muestra apenas entra: que se entere
        de que se le devolvio algo y por que, en vez de verla aparecer sola. */
     if(S.devolPuede) setTimeout(() => abrir('devol'), 700);
+    else if(!S.yaEligio) setTimeout(() => abrir('invita'), 700);
     setInterval(bajarEstado, 30000);
   }catch(e){
     cargando.innerHTML = 'No se pudo conectar.<br><br>' +
