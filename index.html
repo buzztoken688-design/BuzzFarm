@@ -725,6 +725,18 @@ body{
   <div class="caja" id="cajaPanal"></div>
 </div>
 
+<div class="hoja" id="hDevol">
+  <div class="caja" style="text-align:center">
+    <div class="tira"></div>
+    <img data-ico="buzz" alt="" style="width:56px;height:56px;object-fit:contain;margin:4px auto 0">
+    <h2 data-t="devolTit"></h2>
+    <div id="devolMonto" style="font-size:36px;font-weight:800;color:var(--verde);margin:4px 0 2px"></div>
+    <p class="sub" data-t="devolSub"></p>
+    <button class="grande" onclick="cobrarDevolucion()" data-t="devolBtn"></button>
+    <button class="grande gris" onclick="cerrar('devol')" data-t="devolLuego"></button>
+  </div>
+</div>
+
 <div id="aviso"></div>
 <div id="serpentina"></div>
 
@@ -1110,6 +1122,11 @@ const TEXTOS = {
   },
 
   pt: {
+    devolTit:'Devolvemos isto',
+    devolBtn:'Resgatar',
+    devolLuego:'Depois',
+    devolSub:'Ao passar para a fazenda nova não vieram a fumaça, o pólen nem a comida que você já tinha pago. Isto é o que valia, e vai direto para o seu saldo no jogo.',
+    avDevuelto:'Resgatou {0} BUZZ',
     alimentarTodas:'Alimentar',
     fumigarTodas:'Fumigar',
     cosecharTodo:'Colher',
@@ -1319,6 +1336,9 @@ const APP_ID = 'app_3e9c2f5581972d797aedb86a4c34c3d4';
 const BANCO   = '0xfc9bc00d4445fea7c6c99fecd02cd4cac6337e18';
 const GRANJA  = '0x88d66cc79131fd065a1df2eab2ea6a05b88352af';
 const VIEJA   = '0x35bbf092ccca8e820413c4f1825505d67554c2bd';   // solo para el traspaso
+/* Contrato temporal: devuelve lo que la migracion no trajo de la granja
+   anterior. Cuando todos hayan cobrado se apaga y esto se puede sacar. */
+const DEVOL   = '0x8e1ea288e1d500ab8f782942e7bd070def0a3733';
 const TOKEN  = '0xf9f44acea8d3f7f34ff9766cbbe5293f11b719fe';
 const RPC    = 'https://worldchain-mainnet.g.alchemy.com/public';
 const CHAIN  = 480;
@@ -1466,6 +1486,12 @@ async function bajarEstado(){
         ['address','address','uint256'], [TOKEN, yo, ITEM[k]], ['uint256']);
       if(b) S.insumos[k] = Number(b[0]);
     }
+
+    /* Lo que le quedo esperando de la migracion anterior. */
+    const dv = await leerSeguro(DEVOL,'miDevolucion(address)',['address'],[yo],
+      ['uint256','bool','bool']);
+    S.devolucion = dv ? num(dv[0]) : 0;
+    S.devolPuede = dv ? dv[2] : false;
 
     /* Si tiene cosas en la granja anterior y todavia no las trajo, se le
        ofrece el traspaso apenas entra. */
@@ -1657,7 +1683,7 @@ const S = {
   casa:{ buzz:{ap:0, pa:0, gratis:0, usados:0, dia:0, ultimoGratis:0, apuestas:null} },
   mochila:Object.fromEntries(Object.keys(ABEJAS).map(k => [k, k === 'obrera' ? 1 : 0])),
   insumos:{humo:0, pot1h:0, pot6h:0, pot24h:0, medallon:0},
-  puedeTraer:false,
+  puedeTraer:false, devolucion:0, devolPuede:false,
   abiertos:0,                 // los abre el jugador, todos se pagan
   panales:Array.from({length:6}, () => [null, null])
 };
@@ -2184,7 +2210,7 @@ async function retirar(parte){
 }
 
 // ---- hojas ----
-const HOJAS = {tienda:'hTienda', mochila:'hMochila', mercado:'hMercado',
+const HOJAS = {devol:'hDevol', tienda:'hTienda', mochila:'hMochila', mercado:'hMercado',
                ganar:'hGanar', panal:'hPanal'};
 /* La hoja se muestra PRIMERO y despues se pinta. Antes era al reves: si
    el pintado se rompia, la pantalla nunca aparecia y parecia que el boton
@@ -2199,6 +2225,7 @@ function abrir(c){
     if(c === 'mochila') verMochila();
     if(c === 'mercado') verMercado();
     if(c === 'ganar')   verGanar();
+    if(c === 'devol')   verDevol();
     }catch(e){
     avisar('No se pudo cargar esta pantalla');
   }
@@ -2301,6 +2328,19 @@ async function depositar(){
 /* ---- lo nuevo de la granja ---- */
 
 /** Trae lo que el jugador tenia en la granja anterior. */
+/** Cobra lo que quedo esperando de la migracion anterior. */
+async function cobrarDevolucion(){
+  if(!S.devolPuede){ cerrar('devol'); return; }
+  cerrar('devol');
+  await firmar([{ to: DEVOL, data: dato('cobrar()', [], []) }],
+    tr('avDevuelto', red2(S.devolucion)));
+  S.devolPuede = false;
+}
+
+function verDevol(){
+  document.getElementById('devolMonto').textContent = red2(S.devolucion) + ' BUZZ';
+}
+
 async function traerGranja(){
   await firmar([aGranja('traerMiGranja(address)', ['address'], [TOKEN])], tr('avTraido'));
 }
@@ -2557,6 +2597,10 @@ window.addEventListener('load', async () => {
 
     cargando.classList.add('fuera');
     document.getElementById('juego').style.display = '';
+
+    /* Si tiene plata esperando, se le muestra apenas entra: que se entere
+       de que se le devolvio algo y por que, en vez de verla aparecer sola. */
+    if(S.devolPuede) setTimeout(() => abrir('devol'), 700);
     setInterval(bajarEstado, 30000);
   }catch(e){
     cargando.innerHTML = 'No se pudo conectar.<br><br>' +
