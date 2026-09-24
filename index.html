@@ -731,7 +731,9 @@ body{
       <div id="refCodigo" style="font-family:ui-monospace,monospace; font-size:11.5px;
            color:var(--miel); word-break:break-all; line-height:1.5"></div>
     </div>
-    <button class="grande" onclick="copiarCodigo()" data-t="refCopiar"></button>
+    <button class="grande" onclick="compartirCodigo()" data-t="refCompartir"></button>
+    <p class="nota" id="refLink" style="font-family:ui-monospace,monospace;
+       font-size:10.5px; word-break:break-all; color:var(--tenue)"></p>
     <p class="nota" data-t="refComo"></p>
 
     <button class="grande gris" onclick="cerrar('ganar')" data-t="cerrar"></button></div>
@@ -844,6 +846,9 @@ const ICO = {
    =================================================================== */
 const TEXTOS = {
   es: {
+    refCompartir:'Compartir mi invitación',
+    refMensaje:'🐝 Entrá a BuzzFarm conmigo y empezá a farmear BUZZ',
+    refCopiado:'Invitación copiada',
     ganarTit:'Bloquear BUZZ',
     bloTasa:'Rinde',
     bloTuyo:'Tenés bloqueado',
@@ -874,7 +879,6 @@ const TEXTOS = {
     refCopiar:'Copiar mi código',
     refSub:'Compartí tu wallet. Cuando alguien entre con ella y compre su primera abeja, cobrás.',
     refComo:'El premio se paga cuando tu invitado compra su primera abeja, no al anotarse.',
-    refCopiado:'Código copiado',
     refMala:'Esa wallet no es válida',
     refVos:'No podés invitarte a vos mismo',
     refSinNadie:'Listo, entraste por tu cuenta',
@@ -1025,6 +1029,9 @@ const TEXTOS = {
   },
 
   en: {
+    refCompartir:'Share my invite',
+    refMensaje:'🐝 Join BuzzFarm with me and start farming BUZZ',
+    refCopiado:'Invite copied',
     ganarTit:'Lock BUZZ',
     bloTasa:'Yields',
     bloTuyo:'You have locked',
@@ -1055,7 +1062,6 @@ const TEXTOS = {
     refCopiar:'Copy my code',
     refSub:'Share your wallet. When someone joins with it and buys their first bee, you get paid.',
     refComo:'The reward is paid when your friend buys their first bee, not when they sign up.',
-    refCopiado:'Code copied',
     refMala:'That wallet is not valid',
     refVos:'You cannot invite yourself',
     refSinNadie:'Done, you joined on your own',
@@ -1206,6 +1212,9 @@ const TEXTOS = {
   },
 
   pt: {
+    refCompartir:'Compartilhar meu convite',
+    refMensaje:'🐝 Entre no BuzzFarm comigo e comece a farmar BUZZ',
+    refCopiado:'Convite copiado',
     ganarTit:'Bloquear BUZZ',
     bloTasa:'Rende',
     bloTuyo:'Você tem bloqueado',
@@ -1236,7 +1245,6 @@ const TEXTOS = {
     refCopiar:'Copiar meu código',
     refSub:'Compartilhe sua carteira. Quando alguém entrar com ela e comprar a primeira abelha, você recebe.',
     refComo:'O prêmio se paga quando seu convidado compra a primeira abelha, não ao se cadastrar.',
-    refCopiado:'Código copiado',
     refMala:'Essa carteira não é válida',
     refVos:'Você não pode se convidar',
     refSinNadie:'Pronto, você entrou por conta própria',
@@ -2488,11 +2496,25 @@ async function aceptarInvitacion(solo){
   S.yaEligio = true;
 }
 
-function copiarCodigo(){
-  const t = yo;
-  if(navigator.clipboard) navigator.clipboard.writeText(t).catch(() => {});
+/* El enlace lleva la wallet adentro: al abrirlo, la app la reconoce y la
+   pone sola en el campo de invitacion. World App pasa lo que venga en
+   app_id como parametro, asi que el codigo viaja ahi. */
+const miEnlace = () =>
+  'https://world.org/mini-app?app_id=' + APP_ID + '&path=' + encodeURIComponent('?ref=' + yo);
+
+async function compartirCodigo(){
+  const texto = tr('refMensaje') + '\n\n' + miEnlace();
+  try{
+    if(navigator.share){
+      await navigator.share({ text: texto });
+      return;
+    }
+  }catch(e){ /* si cancela, se copia igual */ }
+  if(navigator.clipboard) navigator.clipboard.writeText(texto).catch(() => {});
   avisar(tr('refCopiado'));
 }
+
+function copiarCodigo(){ compartirCodigo(); }
 
 /** Cobra lo que quedo esperando de la migracion anterior. */
 async function cobrarDevolucion(){
@@ -2585,6 +2607,8 @@ function verGanar(){
   document.getElementById('refCuantos').textContent = S.referidos || 0;
   document.getElementById('refPremio').textContent = red2(S.premioRef || 0) + ' BUZZ';
   document.getElementById('refCodigo').textContent = yo || '';
+  const rl = document.getElementById('refLink');
+  if(rl && yo) rl.textContent = miEnlace();
 
   document.getElementById('bTasa').textContent    = (S.tasaBloq / 100).toFixed(1) + '% anual';
   document.getElementById('bMonto').textContent   = red2(S.guardado) + ' BUZZ';
@@ -2792,7 +2816,15 @@ window.addEventListener('load', async () => {
     /* Si tiene plata esperando, se le muestra apenas entra: que se entere
        de que se le devolvio algo y por que, en vez de verla aparecer sola. */
     if(S.devolPuede) setTimeout(() => abrir('devol'), 700);
-    else if(!S.yaEligio) setTimeout(() => abrir('invita'), 700);
+    else if(!S.yaEligio) setTimeout(() => {
+      /* Si llego por un enlace de invitacion, el codigo ya viene puesto. */
+      const q = new URLSearchParams(location.search);
+      const ref = q.get('ref') || '';
+      if(/^0x[0-9a-fA-F]{40}$/.test(ref) && ref.toLowerCase() !== yo.toLowerCase()){
+        document.getElementById('inInvita').value = ref;
+      }
+      abrir('invita');
+    }, 700);
     setInterval(bajarEstado, 30000);
   }catch(e){
     cargando.innerHTML = 'No se pudo conectar.<br><br>' +
