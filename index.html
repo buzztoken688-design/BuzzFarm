@@ -702,13 +702,19 @@ body{
   <div class="caja"><div class="tira"></div><h2 data-t="ganarTit"></h2>
     <p class="sub" data-t="ganarSub"></p>
 
-    <div class="dato"><span data-t="guardado"></span><b id="gGuardado">0 BUZZ</b></div>
-    <div class="dato"><span data-t="tuParte"></span><b id="gParte">0%</b></div>
-    <div class="dato"><span data-t="ganadoSinCobrar"></span><b id="gGanado">0 BUZZ</b></div>
-    <div class="dato"><span data-t="pozoSemana"></span><b id="gPozo">0 BUZZ</b></div>
+    <div class="dato"><span data-t="bloTasa"></span><b id="bTasa">—</b></div>
+    <div class="dato"><span data-t="bloTuyo"></span><b id="bMonto">0 BUZZ</b></div>
+    <div class="dato"><span data-t="bloJuntado"></span><b id="bJuntado">0 BUZZ</b></div>
+    <div class="dato"><span data-t="bloLibre"></span><b id="bLibre">—</b></div>
 
     <input id="inputGuardar" type="number" inputmode="decimal" min="0" step="0.01"
            data-tph="cuantoGuardar">
+    <div class="fila4">
+      <button class="acc gris" onclick="parteDe(10)">10%</button>
+      <button class="acc gris" onclick="parteDe(25)">25%</button>
+      <button class="acc gris" onclick="parteDe(50)">50%</button>
+      <button class="acc gris" onclick="parteDe(100)" data-t="todo"></button>
+    </div>
     <button class="grande" onclick="guardarBuzz()" data-t="guardarBtn"></button>
     <button class="grande gris" id="btnCobrarG" onclick="cobrarGanado()" data-t="cobrarGanado"></button>
     <button class="grande gris" id="btnSacarG" onclick="sacarGuardado()" data-t="sacarBtn"></button>
@@ -838,6 +844,23 @@ const ICO = {
    =================================================================== */
 const TEXTOS = {
   es: {
+    ganarTit:'Bloquear BUZZ',
+    bloTasa:'Rinde',
+    bloTuyo:'Tenés bloqueado',
+    bloJuntado:'Ganado sin cobrar',
+    bloLibre:'Podés sacar en',
+    bloYaLibre:'Ya podés sacar',
+    ganarSub:'Bloqueá BUZZ y rinde solo. El capital queda trabado 15 días; después lo sacás cuando quieras y lo que dejes sigue rindiendo.',
+    notaGanar:'La ganancia se cobra una vez cada 24 horas. Sale de la reserva del juego, igual que la miel.',
+    bloTrabado:'Todavía está trabado. Podés sacar en {0}',
+    bloEspera:'Ya cobraste hoy. Volvé en {0}',
+    guardarBtn:'Bloquear',
+    sacarBtn:'Sacar lo bloqueado',
+    cobrarGanado:'Cobrar lo ganado',
+    sinGuardado:'No tenés nada bloqueado',
+    sinGanado:'Todavía no juntaste nada',
+    cuantoGuardar:'¿Cuánto querés bloquear?',
+    todo:'Todo',
     potSolo:'Solo sirven en la Suprema: duplican lo que la abeja ya produce.',
     invitaTit:'¿Alguien te invitó?',
     invitaAceptar:'Sí, me invitaron',
@@ -900,22 +923,9 @@ const TEXTOS = {
     lugarVacio:'vacío',
     panalAbriloLibre:'Abrilo con BUZZ. Entran dos abejas y no hay restricción de rareza.',
     navGanar:'Ganar',
-    ganarTit:'Ganar',
-    ganarSub:'Guardá BUZZ y cobrás parte de lo que deja la máquina. No hay tasa prometida: se reparte lo que entró esa semana, a proporción de lo que tenga cada uno guardado.',
-    guardado:'Tenés guardado',
-    tuParte:'Tu parte del pozo',
-    ganadoSinCobrar:'Ganado sin cobrar',
-    pozoSemana:'Juntó la máquina',
-    guardarBtn:'Guardar BUZZ',
-    sacarBtn:'Sacar lo guardado',
-    cobrarGanado:'Cobrar lo ganado',
-    cuantoGuardar:'¿Cuánto querés guardar?',
     avGuardaste:'Guardaste {0} BUZZ',
     avSacaste:'Sacaste {0} BUZZ',
     avCobrado:'Cobraste {0} BUZZ del pozo',
-    sinGuardado:'No tenés nada guardado',
-    sinGanado:'Todavía no juntaste nada',
-    notaGanar:'El pozo sale de lo que se queda la máquina: mientras más se juegue, más se reparte. Si una semana no juega nadie, el pozo es chico. Por eso no se promete ningún porcentaje.',
     abObrera:'Obrera',
     abSelvatica:'Selvática',
     abMielera:'Mielera',
@@ -1015,6 +1025,23 @@ const TEXTOS = {
   },
 
   en: {
+    ganarTit:'Lock BUZZ',
+    bloTasa:'Yields',
+    bloTuyo:'You have locked',
+    bloJuntado:'Earned, not claimed',
+    bloLibre:'You can withdraw in',
+    bloYaLibre:'You can withdraw now',
+    ganarSub:'Lock BUZZ and it yields on its own. The capital is held for 15 days; after that you withdraw whenever you want and whatever you leave keeps yielding.',
+    notaGanar:'Earnings are claimed once every 24 hours. They come from the game reserve, same as honey.',
+    bloTrabado:'Still held. You can withdraw in {0}',
+    bloEspera:'You already claimed today. Come back in {0}',
+    guardarBtn:'Lock',
+    sacarBtn:'Withdraw locked',
+    cobrarGanado:'Claim earnings',
+    sinGuardado:'You have nothing locked',
+    sinGanado:'Nothing earned yet',
+    cuantoGuardar:'How much do you want to lock?',
+    todo:'All',
     potSolo:'Only worth it on the Suprema: they double what the bee already makes.',
     invitaTit:'Did someone invite you?',
     invitaAceptar:'Yes, I was invited',
@@ -1077,22 +1104,9 @@ const TEXTOS = {
     lugarVacio:'empty',
     panalAbriloLibre:'Unlock it with BUZZ. It holds two bees and there is no tier restriction.',
     navGanar:'Earn',
-    ganarTit:'Earn',
-    ganarSub:'Lock BUZZ and take a share of what the machine keeps. There is no promised rate: whatever came in that week is split in proportion to what each player has locked.',
-    guardado:'You have locked',
-    tuParte:'Your share of the pot',
-    ganadoSinCobrar:'Earned, not claimed',
-    pozoSemana:'The machine collected',
-    guardarBtn:'Lock BUZZ',
-    sacarBtn:'Unlock',
-    cobrarGanado:'Claim earnings',
-    cuantoGuardar:'How much do you want to lock?',
     avGuardaste:'Locked {0} BUZZ',
     avSacaste:'Unlocked {0} BUZZ',
     avCobrado:'Claimed {0} BUZZ from the pot',
-    sinGuardado:'You have nothing locked',
-    sinGanado:'Nothing earned yet',
-    notaGanar:'The pot comes from what the machine keeps: the more people play, the more there is to share. If nobody plays one week, the pot is small. That is why no percentage is promised.',
     abObrera:'Worker',
     abSelvatica:'Forest',
     abMielera:'Honeyer',
@@ -1192,6 +1206,23 @@ const TEXTOS = {
   },
 
   pt: {
+    ganarTit:'Bloquear BUZZ',
+    bloTasa:'Rende',
+    bloTuyo:'Você tem bloqueado',
+    bloJuntado:'Ganho sem resgatar',
+    bloLibre:'Pode sacar em',
+    bloYaLibre:'Já pode sacar',
+    ganarSub:'Bloqueie BUZZ e rende sozinho. O capital fica preso 15 dias; depois você saca quando quiser e o que deixar continua rendendo.',
+    notaGanar:'O ganho se resgata uma vez a cada 24 horas. Sai da reserva do jogo, igual ao mel.',
+    bloTrabado:'Ainda está preso. Pode sacar em {0}',
+    bloEspera:'Já resgatou hoje. Volte em {0}',
+    guardarBtn:'Bloquear',
+    sacarBtn:'Sacar o bloqueado',
+    cobrarGanado:'Resgatar o ganho',
+    sinGuardado:'Você não tem nada bloqueado',
+    sinGanado:'Ainda não juntou nada',
+    cuantoGuardar:'Quanto quer bloquear?',
+    todo:'Tudo',
     potSolo:'Só valem na Suprema: duplicam o que a abelha já produz.',
     invitaTit:'Alguém te convidou?',
     invitaAceptar:'Sim, me convidaram',
@@ -1271,22 +1302,9 @@ const TEXTOS = {
     lugarVacio:'vazio',
     panalAbriloLibre:'Abra com BUZZ. Cabem duas abelhas e não há restrição de raridade.',
     navGanar:'Ganhar',
-    ganarTit:'Ganhar',
-    ganarSub:'Guarde BUZZ e receba parte do que a máquina fica. Não há taxa prometida: divide-se o que entrou naquela semana, proporcional ao que cada um tem guardado.',
-    guardado:'Você tem guardado',
-    tuParte:'Sua parte do bolo',
-    ganadoSinCobrar:'Ganho sem resgatar',
-    pozoSemana:'A máquina juntou',
-    guardarBtn:'Guardar BUZZ',
-    sacarBtn:'Tirar o guardado',
-    cobrarGanado:'Resgatar o ganho',
-    cuantoGuardar:'Quanto você quer guardar?',
     avGuardaste:'Guardou {0} BUZZ',
     avSacaste:'Tirou {0} BUZZ',
     avCobrado:'Resgatou {0} BUZZ do bolo',
-    sinGuardado:'Você não tem nada guardado',
-    sinGanado:'Ainda não juntou nada',
-    notaGanar:'O bolo vem do que a máquina fica: quanto mais se joga, mais se divide. Se numa semana ninguém jogar, o bolo é pequeno. Por isso não se promete nenhuma porcentagem.',
     abObrera:'Operária',
     abSelvatica:'Selvática',
     abMielera:'Meleira',
@@ -1426,6 +1444,8 @@ const VIEJA   = '0x35bbf092ccca8e820413c4f1825505d67554c2bd';   // solo para el 
 /* Contrato temporal: devuelve lo que la migracion no trajo de la granja
    anterior. Cuando todos hayan cobrado se apaga y esto se puede sacar. */
 const DEVOL   = '0x8e1ea288e1d500ab8f782942e7bd070def0a3733';
+/* El bloqueo: 10% anual, el capital trabado 15 dias y despues libre. */
+const BLOQ    = '0x3ae5d334aaabc0b431acb17303ee7385e9a9345c';
 const TOKEN  = '0xf9f44acea8d3f7f34ff9766cbbe5293f11b719fe';
 const RPC    = 'https://worldchain-mainnet.g.alchemy.com/public';
 const CHAIN  = 480;
@@ -1579,6 +1599,19 @@ async function bajarEstado(){
       const b = await leerSeguro(GRANJA,'bolsa(address,address,uint256)',
         ['address','address','uint256'], [TOKEN, yo, ITEM[k]], ['uint256']);
       if(b) S.insumos[k] = Number(b[0]);
+    }
+
+    /* El bloqueo: cuanto tiene, cuanto junto y desde cuando puede sacar. */
+    const bl = await leerSeguro(BLOQ,'miEstado(address,address)',['address','address'],[TOKEN,yo],
+      ['uint256','uint256','uint16','uint64','bool','bool','uint64']);
+    if(bl){
+      S.guardado    = num(bl[0]);
+      S.ganado      = num(bl[1]);
+      S.tasaBloq    = Number(bl[2]);
+      S.libreEn     = Number(bl[3]);
+      S.puedeSacar  = bl[4];
+      S.puedeCobrar = bl[5];
+      S.proxCobro   = Number(bl[6]);
     }
 
     /* Referidos: cuantos trajo, cuanto paga y si ya eligio al entrar. */
@@ -1788,6 +1821,7 @@ const S = {
   insumos:{humo:0, pot1h:0, pot6h:0, pot24h:0, medallon:0},
   puedeTraer:false, devolucion:0, devolPuede:false,
   referidos:0, premioRef:0, yaEligio:true,
+  tasaBloq:0, libreEn:0, puedeSacar:false, puedeCobrar:false, proxCobro:0,
   abiertos:0,                 // los abre el jugador, todos se pagan
   panales:Array.from({length:6}, () => [null, null])
 };
@@ -2513,33 +2547,55 @@ async function elegirInvitacion(quien){
     [quien || '0x0000000000000000000000000000000000000000'])], tr('avInvitacion'));
 }
 
+/* ---- el bloqueo ----
+   El capital queda trabado 15 dias y despues sale cuando quiera. La
+   ganancia se cobra una vez cada 24 horas, para que vuelva a diario. */
+const aBloq = (f,t,v) => ({ to: BLOQ, data: dato(f,t,v) });
+
+/* Llena el campo con una parte de lo que tiene, para no escribirlo a mano. */
+function parteDe(pct){
+  const v = red2(S.buzz * pct / 100);
+  document.getElementById('inputGuardar').value = v > 0 ? v : '';
+}
+
 async function guardarBuzz(){
   const v = parseFloat(document.getElementById('inputGuardar').value);
   if(!(v > 0) || S.buzz < v){ avisar(tr('avFaltaBuzz')); return; }
   document.getElementById('inputGuardar').value = '';
-  await firmar([aBanco('guardar(address,uint256)', ['address','uint256'], [TOKEN, aWei(v)])],
+  await firmar([aBloq('bloquear(address,uint256)', ['address','uint256'], [TOKEN, aWei(v)])],
     tr('avGuardaste', red2(v)));
 }
+
 async function sacarGuardado(){
   if(S.guardado <= 0){ avisar(tr('sinGuardado')); return; }
-  await firmar([aBanco('desguardar(address,uint256)', ['address','uint256'], [TOKEN, 0n])],
+  if(!S.puedeSacar){ avisar(tr('bloTrabado', plazo(S.libreEn - ahora()))); return; }
+  await firmar([aBloq('sacar(address,uint256)', ['address','uint256'], [TOKEN, 0n])],
     tr('avSacaste', red2(S.guardado)));
 }
+
 async function cobrarGanado(){
   if(S.ganado <= 0){ avisar(tr('sinGanado')); return; }
-  await firmar([aBanco('cobrarGanancia(address)', ['address'], [TOKEN])],
+  if(!S.puedeCobrar){ avisar(tr('bloEspera', plazo(S.proxCobro - ahora()))); return; }
+  await firmar([aBloq('cobrar(address)', ['address'], [TOKEN])],
     tr('avCobrado', red2(S.ganado)));
 }
+
 function verGanar(){
+  const t = ahora();
   document.getElementById('refCuantos').textContent = S.referidos || 0;
   document.getElementById('refPremio').textContent = red2(S.premioRef || 0) + ' BUZZ';
   document.getElementById('refCodigo').textContent = yo || '';
-  document.getElementById('gGuardado').textContent = red2(S.guardado) + ' BUZZ';
-  document.getElementById('gParte').textContent = (tuParte()*100).toFixed(2) + '%';
-  document.getElementById('gGanado').textContent = red2(S.ganado) + ' BUZZ';
-  document.getElementById('gPozo').textContent = red2(S.pozoTotal) + ' BUZZ';
-  document.getElementById('btnSacarG').disabled  = S.guardado <= 0;
-  document.getElementById('btnCobrarG').disabled = S.ganado < 0.01;
+
+  document.getElementById('bTasa').textContent    = (S.tasaBloq / 100).toFixed(1) + '% anual';
+  document.getElementById('bMonto').textContent   = red2(S.guardado) + ' BUZZ';
+  document.getElementById('bJuntado').textContent = red(S.ganado) + ' BUZZ';
+  document.getElementById('bLibre').textContent   =
+    S.guardado <= 0 ? '—'
+    : S.puedeSacar ? tr('bloYaLibre')
+    : plazo(S.libreEn - t);
+
+  document.getElementById('btnSacarG').disabled  = S.guardado <= 0 || !S.puedeSacar;
+  document.getElementById('btnCobrarG').disabled = S.ganado < 0.0001 || !S.puedeCobrar;
 }
 
 
