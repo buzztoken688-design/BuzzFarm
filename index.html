@@ -2998,21 +2998,23 @@ async function leer(to, firma, tEnt, vals, tSal){
  * es la que tiene MiniKit de verdad, y espera la respuesta.
  */
 let pendientes = {};
+let firmandoGuerra = false;
 async function firmar(llamadas, exito){
   if(!MK){ aviso('Abrí el juego desde World App'); return false; }
+  if(firmandoGuerra){ aviso('Esperá que termine la anterior'); return false; }
+  firmandoGuerra = true;
   try{
-    const { finalPayload } = await MK.commandsAsync.sendTransaction({ transaction: llamadas });
-    if(finalPayload.status === 'error'){
-      aviso('No se pudo firmar: ' + (finalPayload.error_code || 'rechazado'));
-      return false;
-    }
+    /* Misma forma que usa la granja: la version nueva de MiniKit ya no
+       tiene commandsAsync, se llama directo a sendTransaction. */
+    const r = await MK.sendTransaction({ chainId: CHAIN, transactions: llamadas });
+    if(!salioBien(r)){ aviso(motivo(r)); return false; }
     aviso(exito || 'Listo');
     setTimeout(bajarTodo, 2500);
     return true;
   }catch(e){
-    aviso('No se pudo firmar: ' + String(e && e.message || e).slice(0, 50));
+    aviso('No se pudo firmar: ' + String(e && e.message || e).slice(0, 60));
     return false;
-  }
+  }finally{ firmandoGuerra = false; }
 }
 
 /* ---------- traer el estado ---------- */
@@ -3420,7 +3422,7 @@ async function arrancar(){
   /* MiniKit se instala aca, como en la granja: esta pantalla ya no vive
      adentro de un marco. */
   /* MiniKit ya lo instaló la granja: se usa el mismo. */
-  MK = window._MiniKit || null;
+  MK = getMK() || null;   // el mismo MiniKit que usa la granja
 
   if(!/^0x[0-9a-f]{40}$/.test(yo)){
     $('gCuerpo').innerHTML = '<div class="nada" style="padding:40px">' +
