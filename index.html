@@ -2888,25 +2888,6 @@ function abrirPvp(){
   document.getElementById('pvpCapa').classList.add('on');
 }
 function cerrarPvp(){ document.getElementById('pvpCapa').classList.remove('on'); }
-
-/* La guerra vive en un iframe y desde ahi MiniKit puede no estar al
-   alcance. Asi que le firma la granja: la guerra manda el pedido y acá se
-   firma de verdad, con el mismo MiniKit que usa todo lo demas. */
-window.addEventListener('message', async ev => {
-  const d = ev.data;
-  if(!d || d.buzz !== 'firmar' || !Array.isArray(d.llamadas)) return;
-  const marco = document.getElementById('pvpFrame');
-  if(!marco || ev.source !== marco.contentWindow) return;   // solo desde la guerra
-
-  let ok = false;
-  try{
-    const { finalPayload } = await MiniKit.commandsAsync.sendTransaction({ transaction: d.llamadas });
-    ok = finalPayload.status !== 'error';
-  }catch(e){ ok = false; }
-
-  marco.contentWindow.postMessage({ buzz:'firmado', id:d.id, ok }, '*');
-  if(ok) setTimeout(bajarEstado, 3000);
-});
 </script>
 </body>
 </html>
