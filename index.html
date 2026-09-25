@@ -861,6 +861,8 @@ const ICO = {
    =================================================================== */
 const TEXTOS = {
   es: {
+    potFaltan:'Esta abeja gasta {0} y tenés {1}',
+    potComo:'Cada abeja gasta una cantidad distinta de potenciadores según lo que produce. Hoy solo se pueden usar en la Suprema, y gasta 2 por vez.',
     refCompartir:'Compartir mi invitación',
     refMensaje:'🐝 Entrá a BuzzFarm conmigo y empezá a farmear BUZZ',
     refCopiado:'Invitación copiada',
@@ -1044,6 +1046,8 @@ const TEXTOS = {
   },
 
   en: {
+    potFaltan:'This bee uses {0} and you have {1}',
+    potComo:'Each bee uses a different number of boosts depending on how much it produces. For now they only work on the Suprema, and it uses 2 each time.',
     refCompartir:'Share my invite',
     refMensaje:'🐝 Join BuzzFarm with me and start farming BUZZ',
     refCopiado:'Invite copied',
@@ -1227,6 +1231,8 @@ const TEXTOS = {
   },
 
   pt: {
+    potFaltan:'Esta abelha gasta {0} e você tem {1}',
+    potComo:'Cada abelha gasta uma quantidade diferente de potenciadores conforme o que produz. Hoje só funcionam na Suprema, e gasta 2 por vez.',
     refCompartir:'Compartilhar meu convite',
     refMensaje:'🐝 Entre no BuzzFarm comigo e comece a farmar BUZZ',
     refCopiado:'Convite copiado',
@@ -1747,19 +1753,19 @@ for(const k in RAREZAS){
    El margen sube con la rareza: 12% las comunes, 14% raras, 16% épicas,
    18% legendarias, siempre sobre lo que el jugador gasta. */
 const ABEJAS = {
-  obrera:     {ico:'obrera',     rareza:'comun',      costo:11,  dias:7,  miel:19.9,  comida:0.399},
-  selvatica:  {ico:'selvatica',  rareza:'comun',      costo:18,  dias:8,  miel:28.5,  comida:0.571},
-  mielera:    {ico:'mielera',    rareza:'rara',       costo:26,  dias:9,  miel:36.7,  comida:0.733},
-  florista:   {ico:'florista',   rareza:'rara',       costo:33,  dias:9,  miel:46.5,  comida:0.930},
-  minera:     {ico:'minera',     rareza:'rara',       costo:40,  dias:10, miel:50.7,  comida:1.015},
-  escarcha:   {ico:'escarcha',   rareza:'epica',      costo:53,  dias:11, miel:61.4,  comida:1.229},
-  ignea:      {ico:'ignea',      rareza:'epica',      costo:62,  dias:11, miel:71.9,  comida:1.437},
-  dulce:      {ico:'dulce',      rareza:'epica',      costo:70,  dias:12, miel:74.4,  comida:1.488},
-  reina:      {ico:'reina',      rareza:'legendaria', costo:99,  dias:13, miel:98.0, comida:1.961},
-  guardiana:  {ico:'guardiana',  rareza:'legendaria', costo:127, dias:13, miel:125.8, comida:2.516},
-  cristal:    {ico:'cristal',    rareza:'legendaria', costo:160, dias:14, miel:147.1, comida:2.943},
-  cosmica:    {ico:'cosmica',    rareza:'legendaria', costo:204, dias:14, miel:187.6, comida:3.752},
-  suprema:    {ico:'suprema',    rareza:'legendaria', costo:5000, dias:16, miel:4023.4, comida:80.469}
+  obrera:     {ico:'obrera',     rareza:'comun',      costo:11,  dias:7,  miel:19.9,  comida:0.399, raciones:255},
+  selvatica:  {ico:'selvatica',  rareza:'comun',      costo:18,  dias:8,  miel:28.5,  comida:0.571, raciones:255},
+  mielera:    {ico:'mielera',    rareza:'rara',       costo:26,  dias:9,  miel:36.7,  comida:0.733, raciones:255},
+  florista:   {ico:'florista',   rareza:'rara',       costo:33,  dias:9,  miel:46.5,  comida:0.930, raciones:255},
+  minera:     {ico:'minera',     rareza:'rara',       costo:40,  dias:10, miel:50.7,  comida:1.015, raciones:255},
+  escarcha:   {ico:'escarcha',   rareza:'epica',      costo:53,  dias:11, miel:61.4,  comida:1.229, raciones:255},
+  ignea:      {ico:'ignea',      rareza:'epica',      costo:62,  dias:11, miel:71.9,  comida:1.437, raciones:255},
+  dulce:      {ico:'dulce',      rareza:'epica',      costo:70,  dias:12, miel:74.4,  comida:1.488, raciones:255},
+  reina:      {ico:'reina',      rareza:'legendaria', costo:99,  dias:13, miel:98.0, comida:1.961, raciones:255},
+  guardiana:  {ico:'guardiana',  rareza:'legendaria', costo:127, dias:13, miel:125.8, comida:2.516, raciones:255},
+  cristal:    {ico:'cristal',    rareza:'legendaria', costo:160, dias:14, miel:147.1, comida:2.943, raciones:255},
+  cosmica:    {ico:'cosmica',    rareza:'legendaria', costo:204, dias:14, miel:187.6, comida:3.752, raciones:255},
+  suprema:    {ico:'suprema',    rareza:'legendaria', costo:5000, dias:16, miel:4023.4, comida:80.469, raciones:2}
 };
 const NOMBRE_ABEJA = {
   obrera:'abObrera', selvatica:'abSelvatica', mielera:'abMielera', florista:'abFlorista',
@@ -2106,10 +2112,17 @@ function bloqueLugar(i, k, b){
 }
 
 /* Un botoncito por cada potenciador, con cuantos le quedan. */
+/* El boton dice cuantos potenciadores va a gastar, no solo cuantos tenes.
+   Una abeja que produce mas paga mas raciones, y sin avisarlo el jugador ve
+   que le descuentan de mas y piensa que se le perdieron. */
 function pot(k, cual, txt){
+  const b = S.panales[elegido][k];
+  const a = b ? ABEJAS[b.tipo] : null;
+  const rac = a ? (a.raciones || 1) * ((b.fusiones || 0) + 1) : 1;
   const n = S.insumos[cual] || 0;
   return '<button class="acc gris" onclick="usarPotenciador(' + k + ',\'' + cual + '\')"' +
-    (n > 0 ? '' : ' disabled') + '>' + txt + ' (' + n + ')</button>';
+    (n >= rac ? '' : ' disabled') + '>' + txt +
+    '<br><small style="opacity:.85">gasta ' + rac + ' · tenés ' + n + '</small></button>';
 }
 
 /* Lista de abejas para llenar un lugar. Ya no hay rareza que valga: entra
@@ -2301,7 +2314,8 @@ function verMochila(){
       '</div></div>';
   }).join('');
   document.getElementById('listaMochila').innerHTML = filas +
-    '<p class="nota">' + tr('mochilaComo') + '</p>';
+    '<p class="nota">' + tr('mochilaComo') + '</p>' +
+    '<p class="nota">' + tr('potComo') + '</p>';
 }
 
 /* Muestra las abejas puestas para elegir sobre cual usar el item. */
@@ -2572,6 +2586,9 @@ async function fumigarTodas(){
 /** Usa un potenciador sobre una abeja. */
 async function usarPotenciador(k, cual){
   const b = S.panales[elegido][k]; if(!b) return;
+  const a = ABEJAS[b.tipo];
+  const rac = (a.raciones || 1) * ((b.fusiones || 0) + 1);
+  if((S.insumos[cual] || 0) < rac){ avisar(tr('potFaltan', rac, S.insumos[cual] || 0)); return; }
   cerrar('panal');
   await firmar([aGranja('usarItem(address,uint256,uint8)', ['address','uint256','uint8'],
     [TOKEN, ITEM[cual], b.lugar])], tr('avPotenciada'));
@@ -2876,15 +2893,12 @@ refrescar();
    Es una hora fija en segundos: se cambia acá y listo. */
 const GUERRA_ABRE = 1790397364;   // 24 h desde ahora
 
+/* La guerra se abre como pagina propia, no adentro de un marco: dentro de
+   un iframe MiniKit no puede firmar, y por eso las compras fallaban sin que
+   llegara a aparecer la ventana de World App. */
 function abrirPvp(){
-  const f = document.getElementById('pvpFrame');
-  if (!f.src){
-    /* La wallet se le pasa hecha: la guerra vive adentro de la granja y no
-       vuelve a pedir permiso. */
-    f.src = 'buzz-guerra.html?yo=' + encodeURIComponent(yo || '') +
-            '&abre=' + GUERRA_ABRE;
-  }
-  document.getElementById('pvpCapa').classList.add('on');
+  if(!yo){ avisar('Esperá a que cargue tu wallet'); return; }
+  location.href = 'buzz-guerra.html?yo=' + encodeURIComponent(yo);
 }
 function cerrarPvp(){
   document.getElementById('pvpCapa').classList.remove('on');
@@ -2893,24 +2907,7 @@ function cerrarPvp(){
   setTimeout(bajarEstado, 1200);
 }
 
-/* La guerra vive en un iframe y desde ahi MiniKit puede no estar al
-   alcance. Asi que le firma la granja: la guerra manda el pedido y acá se
-   firma de verdad, con el mismo MiniKit que usa todo lo demas. */
-window.addEventListener('message', async ev => {
-  const d = ev.data;
-  if(!d || d.buzz !== 'firmar' || !Array.isArray(d.llamadas)) return;
-  const marco = document.getElementById('pvpFrame');
-  if(!marco || ev.source !== marco.contentWindow) return;   // solo desde la guerra
 
-  let ok = false;
-  try{
-    const { finalPayload } = await MiniKit.commandsAsync.sendTransaction({ transaction: d.llamadas });
-    ok = finalPayload.status !== 'error';
-  }catch(e){ ok = false; }
-
-  marco.contentWindow.postMessage({ buzz:'firmado', id:d.id, ok }, '*');
-  if(ok) setTimeout(bajarEstado, 3000);
-});
 </script>
 </body>
 </html>
