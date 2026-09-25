@@ -202,6 +202,9 @@ h2.tit{font-size:16px; margin:10px 0 2px;}
 .nada{text-align:center; color:var(--tenue, #C9A87C); font-size:13px; padding:20px 10px;}
 
 </style>
+<!-- ethers: sin esto no se puede hablar con la cadena. La maqueta no lo
+     necesitaba porque estaba simulada. -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.7.0/ethers.umd.min.js"></script>
 </head>
 <body>
 
@@ -722,6 +725,13 @@ function cerrarAtaque(){ $('capaAtaque').classList.remove('on'); }
 /* ---------- arranque ---------- */
 
 async function arrancar(){
+  if(typeof ethers === 'undefined'){
+    document.body.innerHTML = '<div class="nada" style="padding:40px">' +
+      'No se pudo cargar la conexión con la cadena.<br><br>' +
+      '<button class="acc gris" onclick="location.reload()">Probar de nuevo</button></div>';
+    return;
+  }
+
   /* La wallet la pasa la granja al abrir la capa: esta pantalla vive
      adentro de ella y no vuelve a pedir permiso. */
   const q = new URLSearchParams(location.search);
@@ -741,7 +751,17 @@ async function arrancar(){
     return;
   }
 
-  await bajarTodo();
+  try{
+    await bajarTodo();
+  }catch(e){
+    aviso('No se pudo leer la cadena');
+  }
+  if(!mio || !cat.length){
+    document.body.innerHTML = '<div class="nada" style="padding:40px">' +
+      'No se pudo leer la guerra.<br><br>' +
+      '<button class="acc gris" onclick="location.reload()">Probar de nuevo</button></div>';
+    return;
+  }
   bajarRivales();
   bajarRegistro().then(() => { pintarRegistro(); avisarAtaque(); });
 
