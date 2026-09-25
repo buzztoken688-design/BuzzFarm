@@ -177,6 +177,12 @@ h2.tit{font-size:16px; margin:10px 0 2px;}
 #capaAtaque .sub, #cuenta .sub{margin:0 0 16px; font-size:13.5px; line-height:1.6; color:var(--tenue, #C9A87C);}
 #capaAtaque .rojoTxt{color:#FF6B5C;}
 #capaAtaque .acc, #cuenta .acc{width:100%; margin-top:8px; padding:13px;}
+.consejos{text-align:left; margin-top:16px; display:flex; flex-direction:column; gap:9px;}
+.consejo{background:rgba(0,0,0,.3); border:1.5px solid var(--borde, #5C3A18);
+  border-radius:12px; padding:11px 13px; font-size:13px;}
+.consejo small{display:block; color:var(--tenue, #C9A87C); font-size:12px;
+  line-height:1.55; margin-top:3px;}
+#cuenta .caja{max-height:86vh; overflow-y:auto;}
 #cuentaReloj{
   font-family:ui-monospace,monospace; font-size:34px; font-weight:800;
   color:var(--miel, #FFC107); letter-spacing:1px; margin-top:4px;
@@ -210,7 +216,7 @@ h2.tit{font-size:16px; margin:10px 0 2px;}
 
 <header>
   <div class="tarjeta"><small>BUZZ</small><b id="vBuzz">0</b></div>
-  <div class="tarjeta miel"><small>Miel en la colmena</small><b id="vMiel">0</b></div>
+  <div class="tarjeta miel"><small>Miel en riesgo</small><b id="vMiel">0</b></div>
   <div class="tarjeta escudo"><small>Inmunidad</small><b id="vEscudo">—</b></div>
 </header>
 
@@ -287,7 +293,10 @@ const RPC    = 'https://worldchain-mainnet.g.alchemy.com/public';
 /* Hasta que la cuenta llegue a cero, solo esta wallet entra. */
 const DUENO   = '0x3de83b386c983426547b3b42e50b810ab9a25deb';
 /* La granja define cuando abre; si no lo pasa, ya esta abierta. */
-const ABRE_EN = Number(new URLSearchParams(location.search).get('abre') || 0);   // lo define la granja al abrir la capa
+/* Cuando abre la guerra para todos. Va aca adentro y no por el enlace:
+   si la granja no lo pasara, la cuenta no correria y entraria cualquiera.
+   Para moverlo, se cambia este numero. */
+const ABRE_EN = 1790398492;   // 26/09/2026 04:54   // lo define la granja al abrir la capa
 
 const GUARDIA_IMG = ['g_dorado','g_cristal','g_naturaleza','g_lunar','g_fuego'];
 const GUERRA_IMG  = ['a_rapida','a_fuego','a_veneno','a_tornado','a_canon'];
@@ -368,18 +377,21 @@ async function bajarCatalogo(){
 }
 
 async function bajarMio(){
-  const [e, m, b] = await Promise.all([
+  const [e, b] = await Promise.all([
     leer(GUERRA,'miEstado(address,address)',['address','address'],[TOKEN,yo],
       ['uint16','uint16','uint16','uint16','uint64','uint8','uint32','uint32','uint256']),
-    leer(GRANJA,'mielDe(address,address)',['address','address'],[TOKEN,yo],['uint256']),
-    leer(BANCO,'saldos(address,address)',['address','address'],[TOKEN,yo],['uint256'])
+    /* El mismo miEstado que usa la granja, para que el BUZZ que se ve aca
+       sea exactamente el mismo que se ve alla. */
+    leer(BANCO,'miEstado(address,address)',['address','address'],[TOKEN,yo],
+      ['uint256','uint256','uint256'])
   ]);
   if(!e) return;
+  const m = await mielEnPanales(yo);
   mio = { guardiaId:Number(e[0])-1, guerreraId:Number(e[1])-1,
           nivelGuardia:Number(e[2]), nivelGuerrera:Number(e[3]),
           escudoHasta:Number(e[4]), ataques:Number(e[5]),
           ganados:Number(e[6]), perdidos:Number(e[7]), robado:num(e[8]),
-          miel: m ? num(m[0]) : 0, buzz: b ? num(b[0]) : 0 };
+          miel: m, buzz: b ? num(b[0]) : 0 };
 
   for(const u of cat){
     const n = await leer(GUERRA,'nivel(address,address,uint256)',['address','address','uint256'],
@@ -400,6 +412,21 @@ async function bajarMio(){
     const p = await leer(GUERRA,'precioAcel(address,uint32)',['address','uint32'],[TOKEN,h],['uint256']);
     ACEL[h].precio = p ? num(p[0]) : 0;
   }
+}
+
+/**
+ * Cuanta miel hay en los panales. Es la que se puede robar: la ya cosechada
+ * no se toca. La granja no tiene una funcion que la sume, asi que se
+ * recorren los doce lugares.
+ */
+async function mielEnPanales(dir){
+  let total = 0;
+  for(let i = 0; i < 12; i++){
+    const m = await leer(GRANJA,'mielLista(address,address,uint8)',
+      ['address','address','uint8'], [TOKEN, dir, i], ['uint256']);
+    if(m) total += num(m[0]);
+  }
+  return total;
 }
 
 /**
@@ -443,12 +470,14 @@ async function bajarRivales(){
       if(!mp || Number(mp[0]) === 0) continue;       // ni empezo a jugar
       const o = await leer(GUERRA,'verObjetivo(address,address)',['address','address'],[TOKEN,d],
         ['bool','uint64','uint256']);
+      /* Cuantos panales tiene abiertos da una idea del tamaño de la colmena
+         sin revelar cuanta miel guarda: eso se sabe al atacar. */
       lista.push({ dir:d, sePuede:o ? o[0] : true,
                    escudoHasta:o ? Number(o[1]) : 0,
-                   miel:o ? num(o[2]) : 0 });
+                   panales:Number(mp[0]) });
     }
-    /* Primero los que tienen algo que sacarles: es lo que se busca. */
-    lista.sort((a,b) => b.miel - a.miel);
+    /* Las colmenas mas grandes primero: son las que valen la pena. */
+    lista.sort((a,b) => b.panales - a.panales);
     rivales = lista;
   }catch(e){ rivales = []; }
   buscando = false;
@@ -585,7 +614,7 @@ function grilla(esGuardiana){
 function pintar(){
   if(!mio) return;
   $('vBuzz').textContent = fmt(mio.buzz);
-  $('vMiel').textContent = fmt(mio.miel);
+  $('vMiel').textContent = fmt(mio.miel);   // la de los panales: es la que se roba
   const e = segs(mio.escudoHasta);
   $('vEscudo').textContent = e > 0 ? reloj(e) : 'No';
 
@@ -625,7 +654,7 @@ function pintarRivales(){
     return '<div class="rival">' +
       '<img src="' + IMG.g_dorado + '" alt="">' +
       '<div class="quien"><b>' + corta(r.dir) + '</b>' +
-      '<small>' + fmt(r.miel) + ' de miel sin cosechar · nivel desconocido</small></div>' +
+      '<small>' + r.panales + ' panales · nivel y miel desconocidos</small></div>' +
       (esc > 0
         ? '<button class="acc gris" disabled>Inmune ' + reloj(esc) + '</button>'
         : '<button class="acc rojo" onclick="atacar(\'' + r.dir + '\')"' +
@@ -813,10 +842,18 @@ arrancar();
 <div id="cuenta">
   <div class="caja">
     <div class="alarma">🛡️</div>
-    <h3>La guerra empieza pronto</h3>
-    <p class="sub">Preparate: comprá tu guardiana antes de que abra, o te van
-       a encontrar con la colmena sin defensa.</p>
+    <h3>La guerra de colmenas abre en</h3>
     <div id="cuentaReloj">00:00:00</div>
+    <p class="sub" style="margin-top:14px">
+      Todavía estamos terminando de prepararla. Cuando el reloj llegue a cero,
+      cualquiera va a poder atacar tu colmena y llevarse parte de la miel que
+      tengas <b>sin cosechar</b>.
+    </p>
+    <div class="consejos">
+      <div class="consejo"><b>Cosechá seguido</b><small>La miel cosechada no se puede robar. La que queda en los panales, sí.</small></div>
+      <div class="consejo"><b>Vas a necesitar una guardiana</b><small>Sin ella, cualquier guerrera entra a tu colmena. Con ella, solo las de más nivel.</small></div>
+      <div class="consejo"><b>Juntá BUZZ</b><small>Las guardianas van de 300 a 8.000 BUZZ, y las más caras arrancan con más nivel.</small></div>
+    </div>
   </div>
 </div>
 
