@@ -3407,6 +3407,7 @@ async function mielEnPanales(dir){
 async function bajarRivales(refrescar){
   if(buscando) return;
   buscando = true;
+  if(refrescar) aviso('Buscando colmenas…');
   try{
     /* Una sola consulta al lector: el trae las colmenas con sus escudos ya
        resueltos. Antes esto recorria la cadena de a cien bloques. */
@@ -3424,12 +3425,64 @@ async function bajarRivales(refrescar){
                      sePuede: o[2], escudoHasta: Number(o[3]) });
       }
     }
-    /* Las colmenas mas grandes primero: son las que valen la pena. */
-    lista.sort((a,b) => b.panales - a.panales);
+    /* El lector solo conoce a los jugadores que tiene anotados, y los que
+       entran nuevos no aparecian. Por eso se suman los que se ven moviendo
+       en la granja (comprar, cosechar, alimentar...) segun el explorador. */
+    const antes = new Set(rivales.map(r => r.dir));
+    const conocidos = new Set(lista.map(r => r.dir));
+    conocidos.add(yo);
+    try{
+      const extra = (await jugadoresDeLaGranja()).filter(d => !conocidos.has(d)).slice(0, 40);
+      const datos = await Promise.all(extra.map(d =>
+        leer(GUERRA, 'verObjetivo(address,address)', ['address','address'], [TOKEN, d],
+             ['bool','uint64','uint256']).then(v => v && ({ dir: d, panales: null,
+               sePuede: v[0], escudoHasta: Number(v[1]) }))));
+      datos.filter(Boolean).forEach(x => lista.push(x));
+    }catch(e){}
+
+    /* Las colmenas mas grandes primero: son las que valen la pena. Las
+       nuevas, de las que no sabemos los panales, van al final. */
+    lista.sort((a,b) => (b.panales ?? -1) - (a.panales ?? -1));
     rivales = lista;
+    if(refrescar){
+      const nuevas = lista.filter(r => !antes.has(r.dir)).length;
+      aviso(lista.length + ' colmenas' + (nuevas && antes.size ? ' · ' + nuevas + ' nuevas' : ''));
+    }
   }catch(e){}
   buscando = false;
   pintar();
+}
+
+/**
+ * Las wallets que se movieron en la granja, sacadas del explorador de World
+ * Chain: cada evento de la granja trae la wallet del jugador entre sus temas.
+ * Se descartan los contratos del juego y el token.
+ */
+async function jugadoresDeLaGranja(){
+  const fuera = new Set([BANCO, GRANJA, GUERRA, TOKEN, LECTOR,
+    '0xde4c7e42e57d34a3d25b0f888d081ddb7248bcc7', '0x0000000000000000000000000000000000000000']
+    .map(x => x.toLowerCase()));
+  const vistos = new Set();
+  let params = null;
+  for(let pag = 0; pag < 10; pag++){
+    const url = EXPLORADOR + GRANJA + '/logs' + (params ? '?' + new URLSearchParams(params) : '');
+    const r = await fetch(url);
+    if(!r.ok) break;
+    const j = await r.json();
+    for(const it of (j.items || [])){
+      (it.topics || []).slice(1).forEach(t => {
+        t = String(t || '').toLowerCase();
+        /* Un tema que es una direccion: 24 ceros y despues 40 caracteres. */
+        if(/^0x0{24}[0-9a-f]{40}$/.test(t)){
+          const d = '0x' + t.slice(26);
+          if(!fuera.has(d) && !/^0x0+$/.test(d)) vistos.add(d);
+        }
+      });
+    }
+    if(!j.next_page_params) break;
+    params = j.next_page_params;
+  }
+  return [...vistos];
 }
 
 /** Vuelve a mirar solo quien tiene escudo: es lo unico que cambia seguido. */
@@ -3711,7 +3764,8 @@ function pintarRivales(){
     return '<div class="rival">' +
       '<img src="' + IMG.g_dorado + '" alt="">' +
       '<div class="quien"><b>' + corta(r.dir) + '</b>' +
-      '<small>' + r.panales + ' panales · nivel y miel desconocidos</small></div>' +
+      '<small>' + (r.panales == null ? 'Colmena nueva' : r.panales + ' panales') +
+        ' · nivel y miel desconocidos</small></div>' +
       (esc > 0
         ? '<button class="acc gris" disabled>Inmune ' + reloj(esc) + '</button>'
         : '<button class="acc rojo" onclick="BZG.atacar(\'' + r.dir + '\')"' +
