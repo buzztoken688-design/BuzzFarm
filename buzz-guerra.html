@@ -433,12 +433,32 @@ async function mielEnPanales(dir){
  * Busca a los jugadores por sus movimientos en el banco. Se mira el ultimo
  * tramo de la cadena, que alcanza y no tarda una eternidad.
  */
-async function bajarRivales(){
+async function bajarRivales(refrescar){
   if(buscando) return;
   buscando = true;
+
+  /* La busqueda recorre miles de bloques y tarda. Se guarda el resultado
+     para que la segunda vez sea al instante; el boton de refrescar la
+     rehace cuando el jugador quiere. */
+  const GUARDADO = 'buzzGuerraColmenas';
+  if(!refrescar){
+    try{
+      const g = JSON.parse(localStorage.getItem(GUARDADO) || 'null');
+      if(g && g.cuando > ahora() - 3600 && g.lista.length){
+        rivales = g.lista;
+        buscando = false;
+        await refrescarEscudos();
+        pintar();
+        return;
+      }
+    }catch(e){}
+  }
+
   try{
     const hasta = parseInt(await rpc('eth_blockNumber', []), 16);
-    const desde = Math.max(0, hasta - 60000);
+    /* Desde que se desplegó el banco: mirar solo el ultimo tramo dejaba
+       afuera a todos los que habian jugado antes. */
+    const desde = 35243000;
     const temas = [[
       ethers.id('Depositado(address,address,uint256)'),
       ethers.id('Cobrado(address,address,uint256,address)')
@@ -479,8 +499,21 @@ async function bajarRivales(){
     /* Las colmenas mas grandes primero: son las que valen la pena. */
     lista.sort((a,b) => b.panales - a.panales);
     rivales = lista;
+    try{
+      localStorage.setItem(GUARDADO, JSON.stringify({ cuando: ahora(), lista }));
+    }catch(e){}
   }catch(e){ rivales = []; }
   buscando = false;
+  pintar();
+}
+
+/** Vuelve a mirar solo quien tiene escudo: es lo unico que cambia seguido. */
+async function refrescarEscudos(){
+  for(const r of rivales.slice(0, mostrando)){
+    const o = await leer(GUERRA,'verObjetivo(address,address)',['address','address'],[TOKEN,r.dir],
+      ['bool','uint64','uint256']);
+    if(o){ r.sePuede = o[0]; r.escudoHasta = Number(o[1]); }
+  }
   pintar();
 }
 
@@ -644,7 +677,7 @@ function pintarRivales(){
   if(buscando) return;
   if(!rivales.length){
     el.innerHTML = '<div class="nada">No se encontraron otras colmenas todavía.' +
-      '<br><button class="acc gris" onclick="bajarRivales()" style="margin-top:10px">Buscar de nuevo</button></div>';
+      '<br><button class="acc gris" onclick="bajarRivales(true)" style="margin-top:10px">Buscar de nuevo</button></div>';
     return;
   }
   const hasta = Math.min(mostrando, rivales.length);
@@ -666,6 +699,8 @@ function pintarRivales(){
     h += '<button class="acc gris" style="width:100%;margin-top:10px" onclick="verMas()">' +
          'Ver más (' + (rivales.length - hasta) + ' colmenas)</button>';
   }
+  h += '<button class="acc gris" style="width:100%;margin-top:8px" onclick="bajarRivales(true)">' +
+       'Buscar colmenas nuevas</button>';
   el.innerHTML = h;
 }
 
