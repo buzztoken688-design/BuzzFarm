@@ -344,16 +344,58 @@ async function leer(to, firma, tEnt, vals, tSal){
   return null;
 }
 
-async function firmar(llamadas, exito){
-  if(!MK) { aviso('Abrí el juego desde World App'); return false; }
-  try{
-    const { finalPayload } = await MK.commandsAsync.sendTransaction({ transaction: llamadas });
-    if(finalPayload.status === 'error'){ aviso('No se pudo firmar'); return false; }
-    aviso(exito || 'Listo');
-    setTimeout(bajarTodo, 2500);
-    return true;
-  }catch(e){ aviso('No se pudo firmar'); return false; }
+/**
+ * Firma a traves de la granja.
+ *
+ * Esta pantalla vive adentro de un iframe, y desde ahi MiniKit no siempre
+ * se puede usar: el navegador puede bloquear el acceso a la ventana de
+ * arriba. Asi que la guerra no firma: le pasa el pedido a la granja, que
+ * es la que tiene MiniKit de verdad, y espera la respuesta.
+ */
+let pendientes = {};
+function firmar(llamadas, exito){
+  return new Promise(resolve => {
+    /* Si por lo que sea MiniKit esta al alcance, se usa directo. */
+    if(MK && MK.commandsAsync){
+      MK.commandsAsync.sendTransaction({ transaction: llamadas })
+        .then(r => {
+          const ok = r.finalPayload.status !== 'error';
+          aviso(ok ? (exito || 'Listo') : 'No se pudo firmar');
+          if(ok) setTimeout(bajarTodo, 2500);
+          resolve(ok);
+        })
+        .catch(() => { aviso('No se pudo firmar'); resolve(false); });
+      return;
+    }
+
+    if(!window.parent || window.parent === window){
+      aviso('Abrí la guerra desde la granja');
+      resolve(false);
+      return;
+    }
+
+    const id = 'f' + Date.now() + Math.random().toString(36).slice(2,7);
+    pendientes[id] = (ok) => {
+      aviso(ok ? (exito || 'Listo') : 'No se pudo firmar');
+      if(ok) setTimeout(bajarTodo, 2500);
+      resolve(ok);
+    };
+    window.parent.postMessage({ buzz:'firmar', id, llamadas }, '*');
+
+    /* Si la granja no contesta, no dejar el boton colgado para siempre. */
+    setTimeout(() => {
+      if(pendientes[id]){ delete pendientes[id]; aviso('No hubo respuesta'); resolve(false); }
+    }, 90000);
+  });
 }
+
+window.addEventListener('message', ev => {
+  const d = ev.data;
+  if(!d || d.buzz !== 'firmado' || !pendientes[d.id]) return;
+  const f = pendientes[d.id];
+  delete pendientes[d.id];
+  f(!!d.ok);
+});
 
 /* ---------- traer el estado ---------- */
 const ACEL = { 1:{horas:1, precio:0, tengo:0}, 3:{horas:3, precio:0, tengo:0} };
