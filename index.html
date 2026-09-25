@@ -2947,6 +2947,60 @@ function cerrarPvp(){
 
 
 
+
+/* ===================== LEER EVENTOS DE LA CADENA =====================
+   El servidor publico de Alchemy solo deja pedir eventos de a 10 bloques:
+   con tramos de 100 fallaba siempre y, como el error se tragaba, el
+   registro salia vacio y la alerta de ataque nunca aparecia. Ahora se
+   usa dRPC (hasta 900 bloques por pedido) y Alchemy de a 10 solo como
+   repuesto para rangos cortos. */
+const RPC_EVENTOS = [
+  { url: 'https://worldchain.drpc.org',                    paso: 900, max: 1e9 },
+  { url: 'https://worldchain-mainnet.g.alchemy.com/public', paso: 10,  max: 300 },
+];
+let errorEventos = '';
+
+async function pedirA(url, metodo, params){
+  const r = await fetch(url, {method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({jsonrpc:'2.0', id:1, method:metodo, params})});
+  const j = await r.json();
+  if(j.error) throw new Error(j.error.message || 'error');
+  return j.result;
+}
+
+/** Todos los eventos entre dos bloques, probando un servidor y despues el otro. */
+async function eventosEntre(filtro, desde, hasta){
+  errorEventos = '';
+  for(const srv of RPC_EVENTOS){
+    if(hasta - desde + 1 > srv.max) continue;
+    try{
+      const pedidos = [];
+      for(let b = desde; b <= hasta; b += srv.paso){
+        pedidos.push({ ...filtro, fromBlock: '0x' + b.toString(16),
+                       toBlock: '0x' + Math.min(b + srv.paso - 1, hasta).toString(16) });
+      }
+      const todos = [];
+      for(let i = 0; i < pedidos.length; i += 6){       // de a 6 para no saturar
+        const r = await Promise.all(pedidos.slice(i, i + 6).map(f => pedirA(srv.url, 'eth_getLogs', [f])));
+        r.forEach(x => todos.push(...(x || [])));
+      }
+      return todos;
+    }catch(e){ errorEventos = String(e && e.message || e).slice(0, 80); }
+  }
+  throw new Error(errorEventos || 'no se pudieron leer los eventos');
+}
+
+async function bloqueActual(){
+  for(const srv of RPC_EVENTOS){
+    try{ return parseInt(await pedirA(srv.url, 'eth_blockNumber', []), 16); }catch(e){}
+  }
+  throw new Error('sin bloque');
+}
+
+/* La marca de "ya lo vi" va por wallet: si en el mismo telefono se usan dos
+   cuentas, una no le tapa la alerta a la otra. */
+const claveVisto = dir => 'buzzGuerraVisto:' + String(dir || '').toLowerCase();
+
 /* ===================== NOMBRES DE USUARIO DE WORLD APP =====================
    En vez de mostrar la wallet (0x3d3c…A186) se muestra el nombre de usuario
    de World App. Se pregunta al servicio publico de nombres de World y, si no
@@ -3029,26 +3083,16 @@ async function revisarAtaquesRecibidos(){
   if(!yo) return;
   try{
     const miDir = String(yo).toLowerCase();
-    const hasta = parseInt(await rpcGranja('eth_blockNumber', []), 16);
-    const visto = Number(localStorage.getItem('buzzGuerraVisto') || 0);
-    /* Como mucho un dia y medio para atras; y si ya se reviso en esta
-       sesion, solo lo nuevo. */
-    const desde = Math.max(hasta - 8000, visto + 1, revisadoHasta + 1);
+    const hasta = await bloqueActual();
+    const visto = Number(localStorage.getItem(claveVisto(miDir)) || 0);
+    /* Hasta 24 horas para atras (bloques de 2 s); y si ya se reviso en
+       esta sesion, solo lo nuevo. */
+    const desde = Math.max(hasta - 43200, visto + 1, revisadoHasta + 1);
     if(desde > hasta) return;
     const tema = TEMA_ATACADA();
     const yoT = '0x' + '0'.repeat(24) + miDir.slice(2);
-    const PASO = 100, ALAVEZ = 10;
-    const logs = [];
-    for(let b = desde; b <= hasta; ){
-      const tandas = [];
-      for(let k = 0; k < ALAVEZ && b <= hasta; k++, b += PASO){
-        tandas.push(rpcGranja('eth_getLogs', [{ address: GUERRA_DIR,
-          fromBlock: '0x' + b.toString(16), toBlock: '0x' + Math.min(b + PASO - 1, hasta).toString(16),
-          /* Atacada(token, atacante, victima): la victima soy yo. */
-          topics: [tema, null, null, yoT] }]).catch(() => []));
-      }
-      (await Promise.all(tandas)).forEach(x => logs.push(...(x || [])));
-    }
+    /* Atacada(token, atacante, victima): la victima soy yo. */
+    const logs = await eventosEntre({ address: GUERRA_DIR, topics: [tema, null, null, yoT] }, desde, hasta);
     revisadoHasta = hasta;
 
     const robos = logs.map(l => {
@@ -3076,7 +3120,7 @@ async function revisarAtaquesRecibidos(){
     document.getElementById('alertaAtaque').classList.add('on');
 
     /* Ya se aviso: la guerra no vuelve a mostrar lo mismo. */
-    localStorage.setItem('buzzGuerraVisto', String(ultimo.bloque));
+    localStorage.setItem(claveVisto(miDir), String(ultimo.bloque));
   }catch(e){ /* sin red: se vuelve a probar en la proxima revision */ }
 }
 
@@ -3099,7 +3143,7 @@ setInterval(() => {
    Antes era buzz-guerra.html. Ahora vive acá adentro: se dibuja en una capa
    aislada (shadow DOM) para que sus estilos y nombres no choquen con la granja,
    y arranca la primera vez que se toca el botón PVP. */
-const GUERRA_HTML = "<style>\n/* ===================================================================\n   GUERRA DE COLMENAS v2 \u2014 maqueta aparte para juntar con buzz-farm\n   Todo en memoria, sin contrato. Mismos colores que buzz-farm-v64.\n   =================================================================== */\n:host{\n  --tabla:#2a1d0c; --tabla-borde:#c98a2a; --miel:#ffc107; --crema:#fff6e2;\n  --tenue:#c9b48a; --savia:#7bd88f; --alarma:#ff6b5c;\n  --guardia:#5fb3ff; --guerra:#ff7a45;\n}\n*{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}\n\n:host{font-family:\"Avenir Next\",\"Segoe UI\",system-ui,sans-serif; color:var(--crema);\n  background:radial-gradient(circle at 50% 0%, #3a2a10 0%, #1a1207 70%); padding-bottom:40px;}\nbutton{font-family:inherit; cursor:pointer;}\nbutton:focus-visible{outline:2px solid var(--miel); outline-offset:2px;}\n\nheader{position:sticky; top:0; z-index:5; display:flex; gap:8px; padding:10px 12px;\n  background:rgba(22,16,7,.95); border-bottom:1.5px solid var(--tabla-borde);}\n.tarjeta{flex:1; background:#20170a; border:1.5px solid #3d2d12; border-radius:12px; padding:6px 9px;}\n.tarjeta small{display:block; font-size:10px; color:var(--tenue);}\n.tarjeta b{font-size:15px; color:var(--miel);}\n.tarjeta.miel b{color:#ffd966;}\n.tarjeta.escudo b{color:var(--guardia); font-size:13px;}\n\n/* ---------- botonera con las im\u00e1genes ---------- */\n.botonera{display:grid; grid-template-columns:1fr 1fr; gap:6px 8px; padding:12px 10px 6px;}\n.btnimg{position:relative; border:0; background:none; padding:0; aspect-ratio:360/148;\n  background-size:contain; background-repeat:no-repeat; background-position:center;\n  filter:drop-shadow(0 3px 3px rgba(0,0,0,.45)) grayscale(.35) brightness(.85); transition:filter .15s, transform .1s;}\n.btnimg.on{filter:drop-shadow(0 0 7px rgba(255,193,7,.7)) drop-shadow(0 3px 3px rgba(0,0,0,.45));}\n.btnimg:active{transform:translateY(2px);}\n.btnimg span{position:absolute; left:42%; right:10%; top:50%; transform:translateY(-50%);\n  font-size:13px; font-weight:900; color:#fff; text-align:center; line-height:1.05;\n  text-shadow:0 2px 0 rgba(0,0,0,.55), 0 0 4px rgba(0,0,0,.5);}\n.btnimg .punto{position:absolute; top:0; right:4%; min-width:18px; height:18px; border-radius:9px;\n  background:var(--alarma); color:#fff; font-size:10px; line-height:18px; padding:0 5px; font-weight:800;}\n@media (max-width:360px){ .btnimg span{font-size:11.5px;} }\n\nsection{display:none; padding:6px 12px;}\nsection.on{display:block;}\nh2.tit{font-size:16px; margin:10px 0 2px;}\n.sub{margin:2px 0 12px; font-size:12px; color:var(--tenue); line-height:1.5;}\n\n/* ---------- la abeja activa ---------- */\n.activa{display:flex; gap:12px; align-items:center; padding:12px; border-radius:18px; margin-bottom:12px;\n  background:var(--tabla); border:1.5px solid #3d2d12;}\n.activa.guardia{border-color:rgba(95,179,255,.55); background:linear-gradient(135deg,rgba(95,179,255,.12),var(--tabla) 60%);}\n.activa.guerra{border-color:rgba(255,122,69,.55); background:linear-gradient(135deg,rgba(255,122,69,.12),var(--tabla) 60%);}\n.activa img{width:120px; height:auto; flex:none;}\n.activa .vacia{width:120px; height:100px; border:2px dashed #3d2d12; border-radius:14px; display:grid; place-items:center;\n  color:var(--tenue); font-size:30px; flex:none;}\n.activa .info{flex:1; font-size:12px; color:var(--tenue); line-height:1.5;}\n.activa .nv{font-size:30px; font-weight:900; line-height:1; margin-bottom:4px;}\n.guardia .nv{color:var(--guardia);} .guerra .nv{color:var(--guerra);}\n.activa b{color:#ffd966;}\n\n/* ---------- cat\u00e1logo de 5 abejas ---------- */\n.grilla{display:grid; grid-template-columns:1fr 1fr; gap:8px;}\n.bicho{background:var(--tabla); border:1.5px solid #3d2d12; border-radius:14px; padding:8px; text-align:center;\n  display:flex; flex-direction:column; gap:5px;}\n.bicho.mia{border-color:var(--tabla-borde);}\n.bicho.puesta{box-shadow:0 0 0 2px var(--miel) inset;}\n.bicho img{width:100%; height:120px; object-fit:contain;}\n.bicho .datos{font-size:11px; color:var(--tenue); line-height:1.4;}\n.bicho .datos b{color:var(--crema);}\n.acc{border:0; border-radius:10px; padding:8px 10px; background:var(--miel); color:#2a1d0c;\n  font-size:12px; font-weight:800;}\n.acc[disabled]{opacity:.45;}\n.acc.rojo{background:var(--guerra); color:#1f0d04;}\n.acc.azul{background:var(--guardia); color:#06182a;}\n.acc.gris{background:transparent; border:1.5px solid #3d2d12; color:var(--crema);}\n\n.riesgo{background:rgba(255,107,92,.08); border:1.5px dashed rgba(255,107,92,.5); border-radius:14px;\n  padding:10px 12px; font-size:12px; line-height:1.5; margin-bottom:12px;}\n.riesgo b{color:#ffd966;}\n\n/* ---------- entrenamiento ---------- */\n.fila-ent{display:flex; align-items:center; gap:10px; background:var(--tabla); border:1.5px solid #3d2d12;\n  border-radius:14px; padding:8px 10px; margin-bottom:8px;}\n.fila-ent img{width:74px; height:64px; object-fit:contain; flex:none;}\n.fila-ent .info{flex:1; min-width:0; font-size:11px; color:var(--tenue);}\n.fila-ent .info b{display:block; font-size:13px; color:var(--crema);}\n.barra{height:7px; border-radius:99px; background:rgba(0,0,0,.4); margin-top:5px; overflow:hidden;}\n.barra i{display:block; height:100%; border-radius:99px;}\n.fila-ent.guardia .barra i{background:var(--guardia);}\n.fila-ent.guerra .barra i{background:var(--guerra);}\n.fila-ent .reloj{color:var(--miel); font-weight:800;}\n.fila-ent .botones{display:flex; flex-direction:column; gap:4px; flex:none;}\n.fila-ent .botones .acc{padding:6px 8px; font-size:11px;}\n.acel{display:flex; align-items:center; gap:10px; background:#20170a; border:1.5px solid var(--tabla-borde);\n  border-radius:14px; padding:8px 12px; margin-bottom:8px; font-size:12px;}\n.acel .ico{font-size:22px;}\n.acel .info{flex:1; color:var(--tenue);}\n.acel .info b{color:var(--crema); display:block; font-size:13px;}\n.acel .tengo{font-weight:900; color:var(--miel); min-width:28px; text-align:center;}\n\n/* ---------- rivales ---------- */\n.rival{display:flex; align-items:center; gap:10px; background:var(--tabla); border:1.5px solid #3d2d12;\n  border-radius:14px; padding:8px 10px; margin-bottom:8px;}\n.rival img{width:56px; height:52px; object-fit:contain; flex:none;}\n.rival .info{flex:1; min-width:0;}\n.rival .nom{font-weight:800; font-size:13px;}\n.rival .det{font-size:11px; color:var(--tenue); margin-top:2px;}\n.rival .det .d{color:var(--guardia); font-weight:800;}\n.rival .det .m{color:#ffd966; font-weight:800;}\n.chance{font-size:10.5px; font-weight:800; margin-top:3px;}\n.cupo{display:flex; justify-content:space-between; align-items:center; background:#20170a; border:1.5px solid #3d2d12;\n  border-radius:12px; padding:8px 12px; margin:4px 0 10px; font-size:12px; color:var(--tenue);}\n.cupo .pips{display:flex; gap:5px;}\n.cupo .pips i{width:14px; height:14px; border-radius:50%; background:var(--guerra); box-shadow:0 0 6px rgba(255,122,69,.6);}\n.cupo .pips i.usado{background:#3d2d12; box-shadow:none;}\n.chance.si{color:var(--savia);} .chance.no{color:var(--alarma);}\n\n/* ---------- registro ---------- */\n.log{background:var(--tabla); border-left:4px solid var(--tenue); border-radius:10px;\n  padding:9px 11px; margin-bottom:8px; font-size:12px; line-height:1.45;}\n.log.perdi{border-left-color:var(--alarma);} .log.gane{border-left-color:var(--savia);} .log.defendi{border-left-color:var(--guardia);}\n.log .t{font-size:10px; color:var(--tenue);}\n.log .fila{display:flex; justify-content:space-between; align-items:center; gap:8px; margin-top:6px;}\n.nada{padding:22px 0; text-align:center; color:var(--tenue); font-size:12px;}\n\n.ajustes{margin-top:16px; background:#20170a; border:1.5px solid #3d2d12; border-radius:14px; padding:12px;}\n.ajustes h4{margin:0 0 8px; font-size:13px; color:var(--miel);}\n.ajuste{display:flex; justify-content:space-between; align-items:center; gap:8px; font-size:12px; margin:8px 0;}\n.ajuste select{background:var(--tabla); color:var(--crema); border:1.5px solid #3d2d12; border-radius:8px; padding:5px; font-family:inherit;}\n\n/* ======= LA PELEA ======= */\n#pelea{position:fixed; inset:0; z-index:20; display:none; flex-direction:column; align-items:center;\n  justify-content:center; background:rgba(10,6,2,.93); padding:20px;}\n#pelea.on{display:flex;} .ring.esperando .izq{animation:vaivenI .9s ease-in-out infinite;} .ring.esperando .der{animation:vaivenD .9s ease-in-out infinite;} .ring.esperando .chispa{animation:chispa .9s .35s infinite;} @keyframes vaivenI{0%,100%{transform:none}45%{transform:translateX(22%)}} @keyframes vaivenD{0%,100%{transform:none}45%{transform:translateX(-22%)}} #resTxt .esp{display:inline-block; animation:parpadeo 1.2s infinite;} @keyframes parpadeo{50%{opacity:.35}}\n.ring{position:relative; width:100%; max-width:400px; height:230px;}\n.lado{position:absolute; top:10px; width:48%; text-align:center; transition:transform .45s cubic-bezier(.5,-.3,.6,1.4), opacity .4s, filter .4s;}\n.lado img{width:100%; height:150px; object-fit:contain;}\n.lado.izq{left:0;} .lado.der{right:0;}\n.lado .quien{font-size:11px; color:var(--tenue); margin-top:2px;}\n.lado .lv{font-size:24px; font-weight:900;}\n.lado.izq .lv{color:var(--guerra);} .lado.der .lv{color:var(--guardia);}\n.ring.choque .izq{transform:translateX(22%);}\n.ring.choque .der{transform:translateX(-22%);}\n.ring.fin-ataca .der{transform:translateY(60px) rotate(25deg); opacity:.35; filter:grayscale(1);}\n.ring.fin-defiende .izq{transform:translateY(60px) rotate(-25deg); opacity:.35; filter:grayscale(1);}\n.chispa{position:absolute; left:50%; top:60px; width:80px; height:80px; margin-left:-40px;\n  border-radius:50%; background:radial-gradient(circle,#fff 0%, #ffd966 35%, rgba(255,193,7,0) 70%);\n  transform:scale(0); opacity:0; pointer-events:none;}\n.ring.choque .chispa{animation:chispa .5s .35s forwards;}\n@keyframes chispa{0%{transform:scale(0);opacity:1}60%{transform:scale(1.7);opacity:1}100%{transform:scale(2.3);opacity:0}}\n#resultado{min-height:130px; text-align:center; margin-top:10px; opacity:0; transition:opacity .4s;}\n#resultado.on{opacity:1;}\n#resultado h2{margin:0 0 6px; font-size:26px;}\n#resultado p{margin:0 0 14px; color:var(--tenue); font-size:13px; line-height:1.5;}\n@media (prefers-reduced-motion:reduce){ .lado{transition:none;} .ring.choque .chispa{animation:none;} }\n\n#volverGranja{\n  position:fixed; left:12px; right:12px; z-index:210;   /* por encima de la cuenta regresiva, para poder volver */\n  bottom:calc(14px + env(safe-area-inset-bottom));\n  height:48px; border:0; border-radius:14px; font-family:inherit;\n  font-size:15px; font-weight:800; color:#3D1D06;\n  background:linear-gradient(#FFD54F,#FFB300); box-shadow:0 4px 0 #A85D00;\n}\n:host{padding-bottom:78px;}\n#aviso{position:fixed; left:50%; bottom:20px; transform:translateX(-50%) translateY(90px);\n  background:var(--tabla); border:1.5px solid var(--tabla-borde); border-radius:12px; padding:10px 14px;\n  font-size:12.5px; z-index:30; transition:transform .3s; max-width:90%; text-align:center;}\n#aviso.on{transform:translateX(-50%) translateY(0);}\n\n/* ---- la ventana de te atacaron y la cuenta ---- */\n#capaAtaque, #cuenta{\n  position:fixed; inset:0; z-index:200; display:none;\n  background:rgba(8,6,3,.88); align-items:center; justify-content:center; padding:22px;\n}\n#capaAtaque.on, #cuenta.on{display:flex;}\n#capaAtaque .caja, #cuenta .caja{\n  background:#20170a; border:2px solid var(--borde, #5C3A18); border-radius:20px;\n  padding:24px 20px; text-align:center; max-width:340px; width:100%;\n}\n#capaAtaque .alarma, #cuenta .alarma{font-size:46px; line-height:1; margin-bottom:8px;}\n#capaAtaque h3, #cuenta h3{margin:0 0 6px; font-size:20px; color:var(--miel, #FFC107);}\n#capaAtaque .sub, #cuenta .sub{margin:0 0 16px; font-size:13.5px; line-height:1.6; color:var(--tenue, #C9A87C);}\n#capaAtaque .rojoTxt{color:#FF6B5C;}\n#capaAtaque .acc, #cuenta .acc{width:100%; margin-top:8px; padding:13px;}\n.consejos{text-align:left; margin-top:16px; display:flex; flex-direction:column; gap:9px;}\n.consejo{background:rgba(0,0,0,.3); border:1.5px solid var(--borde, #5C3A18);\n  border-radius:12px; padding:11px 13px; font-size:13px;}\n.consejo small{display:block; color:var(--tenue, #C9A87C); font-size:12px;\n  line-height:1.55; margin-top:3px;}\n#cuenta .caja{max-height:86vh; overflow-y:auto;}\n#cuentaReloj{\n  font-family:ui-monospace,monospace; font-size:34px; font-weight:800;\n  color:var(--miel, #FFC107); letter-spacing:1px; margin-top:4px;\n}\n#aviso{\n  position:fixed; left:14px; right:14px; bottom:76px; z-index:210;\n  background:rgba(22,16,7,.96); border:1.5px solid var(--borde, #5C3A18);\n  border-radius:13px; padding:12px 14px; font-size:13px; text-align:center;\n  opacity:0; transform:translateY(10px); transition:.18s; pointer-events:none;\n}\n#aviso.on{opacity:1; transform:none;}\n.tiendaAcel{display:flex; gap:8px; margin-bottom:12px;}\n.acelItem{flex:1; background:rgba(0,0,0,.3); border:1.5px solid var(--borde, #5C3A18);\n  border-radius:12px; padding:10px; text-align:center; font-size:12px;}\n.acelItem small{display:block; color:var(--tenue, #C9A87C); margin:3px 0 7px;}\n.acels{display:flex; gap:6px; margin-top:6px;}\n.enEntreno{font-size:12px; color:var(--miel, #FFC107); margin-top:4px;}\n.log{display:flex; align-items:center; justify-content:space-between; gap:10px;\n  background:rgba(0,0,0,.3); border:1.5px solid var(--borde, #5C3A18);\n  border-radius:12px; padding:11px 13px; margin-bottom:8px;}\n.log small{display:block; color:var(--tenue, #C9A87C); font-size:11.5px; margin-top:2px;}\n.log.mal{border-color:#7A2E28;}\n.nada{text-align:center; color:var(--tenue, #C9A87C); font-size:13px; padding:20px 10px;}\n\n<\/style><div id=\"gCuerpo\">\n\n<header>\n  <div class=\"tarjeta\"><small>BUZZ<\/small><b id=\"vBuzz\">0<\/b><\/div>\n  <div class=\"tarjeta miel\"><small>Miel en riesgo<\/small><b id=\"vMiel\">0<\/b><\/div>\n  <div class=\"tarjeta escudo\"><small>Inmunidad<\/small><b id=\"vEscudo\">\u2014<\/b><\/div>\n<\/header>\n\n<nav class=\"botonera\">\n  <button class=\"btnimg on\" data-p=\"escudo\"   data-img=\"b_escudo\"><span>Abejas de escudo<\/span><\/button>\n  <button class=\"btnimg\"    data-p=\"ataque\"   data-img=\"b_ataque\"><span>Abejas de ataque<\/span><\/button>\n  <button class=\"btnimg\"    data-p=\"entreno\"  data-img=\"b_entreno\"><span>Entrenamiento<\/span><\/button>\n  <button class=\"btnimg\"    data-p=\"registro\" data-img=\"b_registro\"><span>Registro<\/span><i class=\"punto\" id=\"punto\" hidden>0<\/i><\/button>\n<\/nav>\n\n<!-- ESCUDO -->\n<section id=\"escudo\" class=\"on\">\n  <div id=\"activaGuardia\"><\/div>\n  <div class=\"riesgo\" id=\"txtRiesgo\"><\/div>\n  <h2 class=\"tit\">Guardianes<\/h2>\n  <p class=\"sub\">Solo una guardiana cuida la colmena a la vez. Las m\u00e1s caras arrancan con m\u00e1s nivel. No hay nivel m\u00e1ximo.<\/p>\n  <div class=\"grilla\" id=\"grillaGuardia\"><\/div>\n<\/section>\n\n<!-- ATAQUE -->\n<section id=\"ataque\">\n  <div id=\"activaGuerra\"><\/div>\n  <h2 class=\"tit\">Colmenas para atacar<\/h2>\n  <div class=\"cupo\" id=\"cupo\"><\/div>\n  <p class=\"sub\">Tu guerrera gana si tiene m\u00e1s nivel que la guardiana del rival, y te llev\u00e1s parte de su miel.<\/p>\n  <div id=\"listaRivales\"><\/div>\n  <h2 class=\"tit\">Guerreras<\/h2>\n  <p class=\"sub\">Sale a atacar una sola a la vez.<\/p>\n  <div class=\"grilla\" id=\"grillaGuerra\"><\/div>\n<\/section>\n\n<!-- ENTRENAMIENTO -->\n<section id=\"entreno\">\n  <h2 class=\"tit\">Entrenamiento<\/h2>\n  <p class=\"sub\">Cada nivel se paga con BUZZ y tarda 6 horas. Con aceleradores lo acort\u00e1s, hasta 2 por entrenamiento.<\/p>\n  <div id=\"tiendaAcel\"><\/div>\n  <div id=\"listaEntreno\"><\/div>\n<\/section>\n\n<!-- REGISTRO -->\n<section id=\"registro\">\n  <h2 class=\"tit\">Registro<\/h2>\n  <p class=\"sub\">Si te robaron pod\u00e9s vengarte: la venganza pasa por encima del escudo del rival.<\/p>\n  <div id=\"listaLog\"><\/div>\n  \n<\/section>\n\n<div id=\"pelea\" role=\"dialog\" aria-modal=\"true\">\n  <div class=\"ring\" id=\"ring\">\n    <div class=\"lado izq\"><img id=\"imgIzq\" alt=\"\"><div class=\"lv\" id=\"lvIzq\"><\/div><div class=\"quien\" id=\"quienIzq\"><\/div><\/div>\n    <div class=\"chispa\"><\/div>\n    <div class=\"lado der\"><img id=\"imgDer\" alt=\"\"><div class=\"lv\" id=\"lvDer\"><\/div><div class=\"quien\" id=\"quienDer\"><\/div><\/div>\n  <\/div>\n  <div id=\"resultado\"><h2 id=\"resTit\"><\/h2><p id=\"resTxt\"><\/p><button class=\"acc\" id=\"btnCerrar\">Seguir<\/button><\/div>\n<\/div>\n\n\n<div id=\"aviso\"><\/div>\n\n\n\n<!-- ===== te atacaron ===== -->\n<div id=\"capaAtaque\">\n  <div class=\"caja\">\n    <div class=\"alarma\">\u2694\ufe0f<\/div>\n    <h3 id=\"atqCuantos\">Te atacaron<\/h3>\n    <p class=\"sub\"><b id=\"atqQuien\"><\/b> entr\u00f3 a tu colmena y se llev\u00f3\n       <b id=\"atqMonto\" class=\"rojoTxt\"><\/b> de miel.<\/p>\n    <button class=\"acc rojo\" id=\"btnVengar\">Vengarme ahora<\/button>\n    <button class=\"acc gris\" onclick=\"BZG.cerrarAtaque()\">Dejarlo pasar<\/button>\n  <\/div>\n<\/div>\n\n<!-- ===== la cuenta para los que todavia no entran ===== -->\n<div id=\"cuenta\">\n  <div class=\"caja\">\n    <div class=\"alarma\">\ud83d\udee1\ufe0f<\/div>\n    <h3>La guerra de colmenas abre en<\/h3>\n    <div id=\"cuentaReloj\">00:00:00<\/div>\n    <p class=\"sub\" style=\"margin-top:14px\">\n      Todav\u00eda estamos terminando de prepararla. Cuando el reloj llegue a cero,\n      cualquiera va a poder atacar tu colmena y llevarse parte de la miel que\n      tengas <b>sin cosechar<\/b>.\n    <\/p>\n    <div class=\"consejos\">\n      <div class=\"consejo\"><b>Cosech\u00e1 seguido<\/b><small>La miel cosechada no se puede robar. La que queda en los panales, s\u00ed.<\/small><\/div>\n      <div class=\"consejo\"><b>Vas a necesitar una guardiana<\/b><small>Sin ella, cualquier guerrera entra a tu colmena. Con ella, solo las de m\u00e1s nivel.<\/small><\/div>\n      <div class=\"consejo\"><b>Junt\u00e1 BUZZ<\/b><small>Las guardianas van de 300 a 8.000 BUZZ, y las m\u00e1s caras arrancan con m\u00e1s nivel.<\/small><\/div>\n    <\/div>\n  <\/div>\n<\/div>\n\n<div id=\"aviso\"><\/div>\n\n<\/div>\n<button id=\"volverGranja\" onclick=\"BZG.cerrar()\">Volver a la colmena<\/button>";
+const GUERRA_HTML = "<style>\n/* ===================================================================\n   GUERRA DE COLMENAS v2 \u2014 maqueta aparte para juntar con buzz-farm\n   Todo en memoria, sin contrato. Mismos colores que buzz-farm-v64.\n   =================================================================== */\n:host{\n  --tabla:#2a1d0c; --tabla-borde:#c98a2a; --miel:#ffc107; --crema:#fff6e2;\n  --tenue:#c9b48a; --savia:#7bd88f; --alarma:#ff6b5c;\n  --guardia:#5fb3ff; --guerra:#ff7a45;\n}\n*{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}\n\n:host{font-family:\"Avenir Next\",\"Segoe UI\",system-ui,sans-serif; color:var(--crema);\n  background:radial-gradient(circle at 50% 0%, #3a2a10 0%, #1a1207 70%); padding-bottom:40px;}\nbutton{font-family:inherit; cursor:pointer;}\nbutton:focus-visible{outline:2px solid var(--miel); outline-offset:2px;}\n\nheader{position:sticky; top:0; z-index:5; display:flex; gap:8px; padding:10px 12px;\n  background:rgba(22,16,7,.95); border-bottom:1.5px solid var(--tabla-borde);}\n.tarjeta{flex:1; background:#20170a; border:1.5px solid #3d2d12; border-radius:12px; padding:6px 9px;}\n.tarjeta small{display:block; font-size:10px; color:var(--tenue);}\n.tarjeta b{font-size:15px; color:var(--miel);}\n.tarjeta.miel b{color:#ffd966;}\n.tarjeta.escudo b{color:var(--guardia); font-size:13px;}\n\n/* ---------- botonera con las im\u00e1genes ---------- */\n.botonera{display:grid; grid-template-columns:1fr 1fr; gap:6px 8px; padding:12px 10px 6px;}\n.btnimg{position:relative; border:0; background:none; padding:0; aspect-ratio:360/148;\n  background-size:contain; background-repeat:no-repeat; background-position:center;\n  filter:drop-shadow(0 3px 3px rgba(0,0,0,.45)) grayscale(.35) brightness(.85); transition:filter .15s, transform .1s;}\n.btnimg.on{filter:drop-shadow(0 0 7px rgba(255,193,7,.7)) drop-shadow(0 3px 3px rgba(0,0,0,.45));}\n.btnimg:active{transform:translateY(2px);}\n.btnimg span{position:absolute; left:42%; right:10%; top:50%; transform:translateY(-50%);\n  font-size:13px; font-weight:900; color:#fff; text-align:center; line-height:1.05;\n  text-shadow:0 2px 0 rgba(0,0,0,.55), 0 0 4px rgba(0,0,0,.5);}\n.btnimg .punto{position:absolute; top:0; right:4%; min-width:18px; height:18px; border-radius:9px;\n  background:var(--alarma); color:#fff; font-size:10px; line-height:18px; padding:0 5px; font-weight:800;}\n@media (max-width:360px){ .btnimg span{font-size:11.5px;} }\n\nsection{display:none; padding:6px 12px;}\nsection.on{display:block;}\nh2.tit{font-size:16px; margin:10px 0 2px;}\n.sub{margin:2px 0 12px; font-size:12px; color:var(--tenue); line-height:1.5;}\n\n/* ---------- la abeja activa ---------- */\n.activa{display:flex; gap:12px; align-items:center; padding:12px; border-radius:18px; margin-bottom:12px;\n  background:var(--tabla); border:1.5px solid #3d2d12;}\n.activa.guardia{border-color:rgba(95,179,255,.55); background:linear-gradient(135deg,rgba(95,179,255,.12),var(--tabla) 60%);}\n.activa.guerra{border-color:rgba(255,122,69,.55); background:linear-gradient(135deg,rgba(255,122,69,.12),var(--tabla) 60%);}\n.activa img{width:120px; height:auto; flex:none;}\n.activa .vacia{width:120px; height:100px; border:2px dashed #3d2d12; border-radius:14px; display:grid; place-items:center;\n  color:var(--tenue); font-size:30px; flex:none;}\n.activa .info{flex:1; font-size:12px; color:var(--tenue); line-height:1.5;}\n.activa .nv{font-size:30px; font-weight:900; line-height:1; margin-bottom:4px;}\n.guardia .nv{color:var(--guardia);} .guerra .nv{color:var(--guerra);}\n.activa b{color:#ffd966;}\n\n/* ---------- cat\u00e1logo de 5 abejas ---------- */\n.grilla{display:grid; grid-template-columns:1fr 1fr; gap:8px;}\n.bicho{background:var(--tabla); border:1.5px solid #3d2d12; border-radius:14px; padding:8px; text-align:center;\n  display:flex; flex-direction:column; gap:5px;}\n.bicho.mia{border-color:var(--tabla-borde);}\n.bicho.puesta{box-shadow:0 0 0 2px var(--miel) inset;}\n.bicho img{width:100%; height:120px; object-fit:contain;}\n.bicho .datos{font-size:11px; color:var(--tenue); line-height:1.4;}\n.bicho .datos b{color:var(--crema);}\n.acc{border:0; border-radius:10px; padding:8px 10px; background:var(--miel); color:#2a1d0c;\n  font-size:12px; font-weight:800;}\n.acc[disabled]{opacity:.45;}\n.acc.rojo{background:var(--guerra); color:#1f0d04;}\n.acc.azul{background:var(--guardia); color:#06182a;}\n.acc.gris{background:transparent; border:1.5px solid #3d2d12; color:var(--crema);}\n\n.riesgo{background:rgba(255,107,92,.08); border:1.5px dashed rgba(255,107,92,.5); border-radius:14px;\n  padding:10px 12px; font-size:12px; line-height:1.5; margin-bottom:12px;}\n.riesgo b{color:#ffd966;}\n\n/* ---------- entrenamiento ---------- */\n.fila-ent{display:flex; align-items:center; gap:10px; background:var(--tabla); border:1.5px solid #3d2d12;\n  border-radius:14px; padding:8px 10px; margin-bottom:8px;}\n.fila-ent img{width:74px; height:64px; object-fit:contain; flex:none;}\n.fila-ent .info{flex:1; min-width:0; font-size:11px; color:var(--tenue);}\n.fila-ent .info b{display:block; font-size:13px; color:var(--crema);}\n.barra{height:7px; border-radius:99px; background:rgba(0,0,0,.4); margin-top:5px; overflow:hidden;}\n.barra i{display:block; height:100%; border-radius:99px;}\n.fila-ent.guardia .barra i{background:var(--guardia);}\n.fila-ent.guerra .barra i{background:var(--guerra);}\n.fila-ent .reloj{color:var(--miel); font-weight:800;}\n.fila-ent .botones{display:flex; flex-direction:column; gap:4px; flex:none;}\n.fila-ent .botones .acc{padding:6px 8px; font-size:11px;}\n.acel{display:flex; align-items:center; gap:10px; background:#20170a; border:1.5px solid var(--tabla-borde);\n  border-radius:14px; padding:8px 12px; margin-bottom:8px; font-size:12px;}\n.acel .ico{font-size:22px;}\n.acel .info{flex:1; color:var(--tenue);}\n.acel .info b{color:var(--crema); display:block; font-size:13px;}\n.acel .tengo{font-weight:900; color:var(--miel); min-width:28px; text-align:center;}\n\n/* ---------- rivales ---------- */\n.rival{display:flex; align-items:center; gap:10px; background:var(--tabla); border:1.5px solid #3d2d12;\n  border-radius:14px; padding:8px 10px; margin-bottom:8px;}\n.rival img{width:56px; height:52px; object-fit:contain; flex:none;}\n.rival .info{flex:1; min-width:0;}\n.rival .nom{font-weight:800; font-size:13px;}\n.rival .det{font-size:11px; color:var(--tenue); margin-top:2px;}\n.rival .det .d{color:var(--guardia); font-weight:800;}\n.rival .det .m{color:#ffd966; font-weight:800;}\n.chance{font-size:10.5px; font-weight:800; margin-top:3px;}\n.cupo{display:flex; justify-content:space-between; align-items:center; background:#20170a; border:1.5px solid #3d2d12;\n  border-radius:12px; padding:8px 12px; margin:4px 0 10px; font-size:12px; color:var(--tenue);}\n.cupo .pips{display:flex; gap:5px;}\n.cupo .pips i{width:14px; height:14px; border-radius:50%; background:var(--guerra); box-shadow:0 0 6px rgba(255,122,69,.6);}\n.cupo .pips i.usado{background:#3d2d12; box-shadow:none;}\n.chance.si{color:var(--savia);} .chance.no{color:var(--alarma);}\n\n/* ---------- registro ---------- */\n.log{background:var(--tabla); border-left:4px solid var(--tenue); border-radius:10px;\n  padding:9px 11px; margin-bottom:8px; font-size:12px; line-height:1.45;}\n.log.perdi{border-left-color:var(--alarma);} .log.gane{border-left-color:var(--savia);} .log.defendi{border-left-color:var(--guardia);}\n.log .t{font-size:10px; color:var(--tenue);}\n.log .fila{display:flex; justify-content:space-between; align-items:center; gap:8px; margin-top:6px;}\n.nada{padding:22px 0; text-align:center; color:var(--tenue); font-size:12px;}\n\n.ajustes{margin-top:16px; background:#20170a; border:1.5px solid #3d2d12; border-radius:14px; padding:12px;}\n.ajustes h4{margin:0 0 8px; font-size:13px; color:var(--miel);}\n.ajuste{display:flex; justify-content:space-between; align-items:center; gap:8px; font-size:12px; margin:8px 0;}\n.ajuste select{background:var(--tabla); color:var(--crema); border:1.5px solid #3d2d12; border-radius:8px; padding:5px; font-family:inherit;}\n\n/* ======= LA PELEA ======= */\n#pelea{position:fixed; inset:0; z-index:20; display:none; flex-direction:column; align-items:center;\n  justify-content:center; background:rgba(10,6,2,.93); padding:20px;}\n#pelea.on{display:flex;} .log.mal{border-left:4px solid var(--alarma);} .log.bien{border-left:4px solid var(--guardia);} .log.gane{border-left:4px solid var(--savia);} .log.fallo{border-left:4px solid var(--tenue);} .ring.esperando .izq{animation:vaivenI .9s ease-in-out infinite;} .ring.esperando .der{animation:vaivenD .9s ease-in-out infinite;} .ring.esperando .chispa{animation:chispa .9s .35s infinite;} @keyframes vaivenI{0%,100%{transform:none}45%{transform:translateX(22%)}} @keyframes vaivenD{0%,100%{transform:none}45%{transform:translateX(-22%)}} #resTxt .esp{display:inline-block; animation:parpadeo 1.2s infinite;} @keyframes parpadeo{50%{opacity:.35}}\n.ring{position:relative; width:100%; max-width:400px; height:230px;}\n.lado{position:absolute; top:10px; width:48%; text-align:center; transition:transform .45s cubic-bezier(.5,-.3,.6,1.4), opacity .4s, filter .4s;}\n.lado img{width:100%; height:150px; object-fit:contain;}\n.lado.izq{left:0;} .lado.der{right:0;}\n.lado .quien{font-size:11px; color:var(--tenue); margin-top:2px;}\n.lado .lv{font-size:24px; font-weight:900;}\n.lado.izq .lv{color:var(--guerra);} .lado.der .lv{color:var(--guardia);}\n.ring.choque .izq{transform:translateX(22%);}\n.ring.choque .der{transform:translateX(-22%);}\n.ring.fin-ataca .der{transform:translateY(60px) rotate(25deg); opacity:.35; filter:grayscale(1);}\n.ring.fin-defiende .izq{transform:translateY(60px) rotate(-25deg); opacity:.35; filter:grayscale(1);}\n.chispa{position:absolute; left:50%; top:60px; width:80px; height:80px; margin-left:-40px;\n  border-radius:50%; background:radial-gradient(circle,#fff 0%, #ffd966 35%, rgba(255,193,7,0) 70%);\n  transform:scale(0); opacity:0; pointer-events:none;}\n.ring.choque .chispa{animation:chispa .5s .35s forwards;}\n@keyframes chispa{0%{transform:scale(0);opacity:1}60%{transform:scale(1.7);opacity:1}100%{transform:scale(2.3);opacity:0}}\n#resultado{min-height:130px; text-align:center; margin-top:10px; opacity:0; transition:opacity .4s;}\n#resultado.on{opacity:1;}\n#resultado h2{margin:0 0 6px; font-size:26px;}\n#resultado p{margin:0 0 14px; color:var(--tenue); font-size:13px; line-height:1.5;}\n@media (prefers-reduced-motion:reduce){ .lado{transition:none;} .ring.choque .chispa{animation:none;} }\n\n#volverGranja{\n  position:fixed; left:12px; right:12px; z-index:210;   /* por encima de la cuenta regresiva, para poder volver */\n  bottom:calc(14px + env(safe-area-inset-bottom));\n  height:48px; border:0; border-radius:14px; font-family:inherit;\n  font-size:15px; font-weight:800; color:#3D1D06;\n  background:linear-gradient(#FFD54F,#FFB300); box-shadow:0 4px 0 #A85D00;\n}\n:host{padding-bottom:78px;}\n#aviso{position:fixed; left:50%; bottom:20px; transform:translateX(-50%) translateY(90px);\n  background:var(--tabla); border:1.5px solid var(--tabla-borde); border-radius:12px; padding:10px 14px;\n  font-size:12.5px; z-index:30; transition:transform .3s; max-width:90%; text-align:center;}\n#aviso.on{transform:translateX(-50%) translateY(0);}\n\n/* ---- la ventana de te atacaron y la cuenta ---- */\n#capaAtaque, #cuenta{\n  position:fixed; inset:0; z-index:200; display:none;\n  background:rgba(8,6,3,.88); align-items:center; justify-content:center; padding:22px;\n}\n#capaAtaque.on, #cuenta.on{display:flex;}\n#capaAtaque .caja, #cuenta .caja{\n  background:#20170a; border:2px solid var(--borde, #5C3A18); border-radius:20px;\n  padding:24px 20px; text-align:center; max-width:340px; width:100%;\n}\n#capaAtaque .alarma, #cuenta .alarma{font-size:46px; line-height:1; margin-bottom:8px;}\n#capaAtaque h3, #cuenta h3{margin:0 0 6px; font-size:20px; color:var(--miel, #FFC107);}\n#capaAtaque .sub, #cuenta .sub{margin:0 0 16px; font-size:13.5px; line-height:1.6; color:var(--tenue, #C9A87C);}\n#capaAtaque .rojoTxt{color:#FF6B5C;}\n#capaAtaque .acc, #cuenta .acc{width:100%; margin-top:8px; padding:13px;}\n.consejos{text-align:left; margin-top:16px; display:flex; flex-direction:column; gap:9px;}\n.consejo{background:rgba(0,0,0,.3); border:1.5px solid var(--borde, #5C3A18);\n  border-radius:12px; padding:11px 13px; font-size:13px;}\n.consejo small{display:block; color:var(--tenue, #C9A87C); font-size:12px;\n  line-height:1.55; margin-top:3px;}\n#cuenta .caja{max-height:86vh; overflow-y:auto;}\n#cuentaReloj{\n  font-family:ui-monospace,monospace; font-size:34px; font-weight:800;\n  color:var(--miel, #FFC107); letter-spacing:1px; margin-top:4px;\n}\n#aviso{\n  position:fixed; left:14px; right:14px; bottom:76px; z-index:210;\n  background:rgba(22,16,7,.96); border:1.5px solid var(--borde, #5C3A18);\n  border-radius:13px; padding:12px 14px; font-size:13px; text-align:center;\n  opacity:0; transform:translateY(10px); transition:.18s; pointer-events:none;\n}\n#aviso.on{opacity:1; transform:none;}\n.tiendaAcel{display:flex; gap:8px; margin-bottom:12px;}\n.acelItem{flex:1; background:rgba(0,0,0,.3); border:1.5px solid var(--borde, #5C3A18);\n  border-radius:12px; padding:10px; text-align:center; font-size:12px;}\n.acelItem small{display:block; color:var(--tenue, #C9A87C); margin:3px 0 7px;}\n.acels{display:flex; gap:6px; margin-top:6px;}\n.enEntreno{font-size:12px; color:var(--miel, #FFC107); margin-top:4px;}\n.log{display:flex; align-items:center; justify-content:space-between; gap:10px;\n  background:rgba(0,0,0,.3); border:1.5px solid var(--borde, #5C3A18);\n  border-radius:12px; padding:11px 13px; margin-bottom:8px;}\n.log small{display:block; color:var(--tenue, #C9A87C); font-size:11.5px; margin-top:2px;}\n.log.mal{border-color:#7A2E28;}\n.nada{text-align:center; color:var(--tenue, #C9A87C); font-size:13px; padding:20px 10px;}\n\n<\/style><div id=\"gCuerpo\">\n\n<header>\n  <div class=\"tarjeta\"><small>BUZZ<\/small><b id=\"vBuzz\">0<\/b><\/div>\n  <div class=\"tarjeta miel\"><small>Miel en riesgo<\/small><b id=\"vMiel\">0<\/b><\/div>\n  <div class=\"tarjeta escudo\"><small>Inmunidad<\/small><b id=\"vEscudo\">\u2014<\/b><\/div>\n<\/header>\n\n<nav class=\"botonera\">\n  <button class=\"btnimg on\" data-p=\"escudo\"   data-img=\"b_escudo\"><span>Abejas de escudo<\/span><\/button>\n  <button class=\"btnimg\"    data-p=\"ataque\"   data-img=\"b_ataque\"><span>Abejas de ataque<\/span><\/button>\n  <button class=\"btnimg\"    data-p=\"entreno\"  data-img=\"b_entreno\"><span>Entrenamiento<\/span><\/button>\n  <button class=\"btnimg\"    data-p=\"registro\" data-img=\"b_registro\"><span>Registro<\/span><i class=\"punto\" id=\"punto\" hidden>0<\/i><\/button>\n<\/nav>\n\n<!-- ESCUDO -->\n<section id=\"escudo\" class=\"on\">\n  <div id=\"activaGuardia\"><\/div>\n  <div class=\"riesgo\" id=\"txtRiesgo\"><\/div>\n  <h2 class=\"tit\">Guardianes<\/h2>\n  <p class=\"sub\">Solo una guardiana cuida la colmena a la vez. Las m\u00e1s caras arrancan con m\u00e1s nivel. No hay nivel m\u00e1ximo.<\/p>\n  <div class=\"grilla\" id=\"grillaGuardia\"><\/div>\n<\/section>\n\n<!-- ATAQUE -->\n<section id=\"ataque\">\n  <div id=\"activaGuerra\"><\/div>\n  <h2 class=\"tit\">Colmenas para atacar<\/h2>\n  <div class=\"cupo\" id=\"cupo\"><\/div>\n  <p class=\"sub\">Tu guerrera gana si tiene m\u00e1s nivel que la guardiana del rival, y te llev\u00e1s parte de su miel.<\/p>\n  <div id=\"listaRivales\"><\/div>\n  <h2 class=\"tit\">Guerreras<\/h2>\n  <p class=\"sub\">Sale a atacar una sola a la vez.<\/p>\n  <div class=\"grilla\" id=\"grillaGuerra\"><\/div>\n<\/section>\n\n<!-- ENTRENAMIENTO -->\n<section id=\"entreno\">\n  <h2 class=\"tit\">Entrenamiento<\/h2>\n  <p class=\"sub\">Cada nivel se paga con BUZZ y tarda 6 horas. Con aceleradores lo acort\u00e1s, hasta 2 por entrenamiento.<\/p>\n  <div id=\"tiendaAcel\"><\/div>\n  <div id=\"listaEntreno\"><\/div>\n<\/section>\n\n<!-- REGISTRO -->\n<section id=\"registro\">\n  <h2 class=\"tit\">Registro<\/h2>\n  <p class=\"sub\">Los ataques que hiciste y los que te hicieron en las \u00faltimas 24 horas. Si te robaron, pod\u00e9s vengarte.<\/p>\n  <div id=\"listaLog\"><\/div>\n  \n<\/section>\n\n<div id=\"pelea\" role=\"dialog\" aria-modal=\"true\">\n  <div class=\"ring\" id=\"ring\">\n    <div class=\"lado izq\"><img id=\"imgIzq\" alt=\"\"><div class=\"lv\" id=\"lvIzq\"><\/div><div class=\"quien\" id=\"quienIzq\"><\/div><\/div>\n    <div class=\"chispa\"><\/div>\n    <div class=\"lado der\"><img id=\"imgDer\" alt=\"\"><div class=\"lv\" id=\"lvDer\"><\/div><div class=\"quien\" id=\"quienDer\"><\/div><\/div>\n  <\/div>\n  <div id=\"resultado\"><h2 id=\"resTit\"><\/h2><p id=\"resTxt\"><\/p><button class=\"acc\" id=\"btnCerrar\">Seguir<\/button><\/div>\n<\/div>\n\n\n<div id=\"aviso\"><\/div>\n\n\n\n<!-- ===== te atacaron ===== -->\n<div id=\"capaAtaque\">\n  <div class=\"caja\">\n    <div class=\"alarma\">\u2694\ufe0f<\/div>\n    <h3 id=\"atqCuantos\">Te atacaron<\/h3>\n    <p class=\"sub\"><b id=\"atqQuien\"><\/b> entr\u00f3 a tu colmena y se llev\u00f3\n       <b id=\"atqMonto\" class=\"rojoTxt\"><\/b> de miel.<\/p>\n    <button class=\"acc rojo\" id=\"btnVengar\">Vengarme ahora<\/button>\n    <button class=\"acc gris\" onclick=\"BZG.cerrarAtaque()\">Dejarlo pasar<\/button>\n  <\/div>\n<\/div>\n\n<!-- ===== la cuenta para los que todavia no entran ===== -->\n<div id=\"cuenta\">\n  <div class=\"caja\">\n    <div class=\"alarma\">\ud83d\udee1\ufe0f<\/div>\n    <h3>La guerra de colmenas abre en<\/h3>\n    <div id=\"cuentaReloj\">00:00:00<\/div>\n    <p class=\"sub\" style=\"margin-top:14px\">\n      Todav\u00eda estamos terminando de prepararla. Cuando el reloj llegue a cero,\n      cualquiera va a poder atacar tu colmena y llevarse parte de la miel que\n      tengas <b>sin cosechar<\/b>.\n    <\/p>\n    <div class=\"consejos\">\n      <div class=\"consejo\"><b>Cosech\u00e1 seguido<\/b><small>La miel cosechada no se puede robar. La que queda en los panales, s\u00ed.<\/small><\/div>\n      <div class=\"consejo\"><b>Vas a necesitar una guardiana<\/b><small>Sin ella, cualquier guerrera entra a tu colmena. Con ella, solo las de m\u00e1s nivel.<\/small><\/div>\n      <div class=\"consejo\"><b>Junt\u00e1 BUZZ<\/b><small>Las guardianas van de 300 a 8.000 BUZZ, y las m\u00e1s caras arrancan con m\u00e1s nivel.<\/small><\/div>\n    <\/div>\n  <\/div>\n<\/div>\n\n<div id=\"aviso\"><\/div>\n\n<\/div>\n<button id=\"volverGranja\" onclick=\"BZG.cerrar()\">Volver a la colmena<\/button>";
 
 function iniciarGuerra(RAIZ, DIRECCION){
 let avisarListo; const guerraLista = new Promise(r => avisarListo = r);
@@ -3327,32 +3371,34 @@ async function bajarRivales(refrescar){
    volver a pedirla: una consulta y listo. */
 async function refrescarEscudos(){ await bajarRivales(); }
 
-/** Los ataques que me hicieron, para el registro y la venganza. */
+/** Todos mis ataques: los que me hicieron y los que hice yo. */
+let bloqueRegistro = 0;
 async function bajarRegistro(){
   try{
-    const hasta = parseInt(await rpc('eth_blockNumber', []), 16);
-    const desde = Math.max(0, hasta - 8000);   // un dia y medio alcanza
+    const hasta = await bloqueActual();
+    const desde = Math.max(0, hasta - 43200);   // 24 horas
     const tema = ethers.id('Atacada(address,address,address,bool,uint256,uint16,uint16)');
     const yoT = '0x' + '0'.repeat(24) + yo.slice(2).toLowerCase();
-    const res = [];
-    const PASO = 100, ALAVEZ = 14;
-    for(let b = desde; b <= hasta; ){
-      const tandas = [];
-      for(let k = 0; k < ALAVEZ && b <= hasta; k++, b += PASO){
-        tandas.push(rpc('eth_getLogs', [{ address: GUERRA,
-          fromBlock: '0x' + b.toString(16),
-          toBlock:   '0x' + Math.min(b + PASO - 1, hasta).toString(16),
-          /* Atacada(token, atacante, victima): la victima es el cuarto tema. */
-          topics: [tema, null, null, yoT] }]).catch(() => []));
-      }
-      (await Promise.all(tandas)).flat().forEach(l => {
-        const d = coder().decode(['bool','uint256','uint16','uint16'], l.data);
-        res.push({ atacante: '0x' + l.topics[2].slice(26),
-                   gano: d[0], botin: num(d[1]), bloque: parseInt(l.blockNumber,16) });
-      });
-    }
-    registro = res.reverse().slice(0, 30);
-  }catch(e){ registro = []; }
+    /* Atacada(token, atacante, victima): tercer tema = atacante, cuarto = victima. */
+    const [recibidos, hechos] = await Promise.all([
+      eventosEntre({ address: GUERRA, topics: [tema, null, null, yoT] }, desde, hasta),
+      eventosEntre({ address: GUERRA, topics: [tema, null, yoT] }, desde, hasta),
+    ]);
+    const leer = (l, tipo) => {
+      const d = coder().decode(['bool','uint256','uint16','uint16'], l.data);
+      return { tipo, atacante: '0x' + l.topics[2].slice(26).toLowerCase(),
+               victima: '0x' + l.topics[3].slice(26).toLowerCase(),
+               gano: d[0], botin: num(d[1]), nAtq: Number(d[2]), nDef: Number(d[3]),
+               bloque: parseInt(l.blockNumber,16) };
+    };
+    bloqueRegistro = hasta;
+    registro = [...recibidos.map(l => leer(l, 'recibido')), ...hechos.map(l => leer(l, 'hecho'))]
+      .sort((x, y) => y.bloque - x.bloque).slice(0, 40);
+  }catch(e){
+    /* Sin cartel de error para el jugador: se deja lo que habia y se
+       vuelve a intentar solo en 20 segundos. */
+    setTimeout(() => bajarRegistro().then(() => { pintarRegistro(); avisarAtaque(); }), 20000);
+  }
 }
 
 async function bajarTodo(){
@@ -3405,7 +3451,7 @@ async function atacar(dir){
   dir = String(dir).toLowerCase();
   /* El bloque de antes de firmar: el resultado se busca desde ahi. */
   let desde = 0;
-  try{ desde = parseInt(await rpc('eth_blockNumber', []), 16); }catch(e){}
+  try{ desde = await bloqueActual(); }catch(e){}
   const ok = await firmar([aGuerra('atacar(address,address)', ['address','address'], [TOKEN, dir])],
     'Ataque enviado');
   if(!ok) return;
@@ -3419,7 +3465,7 @@ async function atacar(dir){
     $('resTxt').textContent = 'La cadena todavía no confirmó el resultado. Revisá el Registro en un rato.';
     $('btnCerrar').hidden = false;
   }
-  setTimeout(() => { bajarRivales(); bajarTodo(); }, 1500);
+  setTimeout(() => { bajarRivales(); bajarTodo(); bajarRegistro().then(pintarRegistro); }, 1500);
 }
 
 /* ---------- la pelea en pantalla ---------- */
@@ -3463,9 +3509,10 @@ async function esperarResultado(dir, desde){
   const fin = Date.now() + 90000;
   while(Date.now() < fin){
     try{
-      const logs = await rpc('eth_getLogs', [{ address: GUERRA,
-        fromBlock: '0x' + Math.max(0, desde - 2).toString(16), toBlock: 'latest',
-        topics: [tema, null, yoT, dirT] }]);   // atacante = yo, victima = el rival
+      const hasta = await bloqueActual();
+      /* atacante = yo, victima = el rival */
+      const logs = await eventosEntre({ address: GUERRA, topics: [tema, null, yoT, dirT] },
+                                      desde ? Math.max(0, desde - 2) : hasta - 60, hasta);
       const l = (logs || [])[ (logs || []).length - 1 ];
       if(l){
         const d = coder().decode(['bool','uint256','uint16','uint16'], l.data);
@@ -3649,16 +3696,32 @@ function pintarEntreno(){
 function pintarRegistro(){
   const el = $('listaLog');
   if(!registro.length){
-    el.innerHTML = '<div class="nada">Nadie te atacó todavía.</div>';
+    el.innerHTML = '<div class="nada">Todavía no hubo ataques.</div>';
     $('punto').hidden = true;
     return;
   }
-  el.innerHTML = registro.map(r =>
-    '<div class="log ' + (r.gano ? 'mal' : 'bien') + '">' +
-    '<div><b>' + corta(r.atacante) + '</b>' +
-    '<small>' + (r.gano ? 'Te sacó ' + fmt(r.botin) + ' de miel' : 'Tu guardiana lo frenó') + '</small></div>' +
-    (r.gano ? '<button class="acc rojo" onclick="BZG.atacar(\'' + r.atacante + '\')">Vengarme</button>' : '') +
-    '</div>').join('');
+  /* Los bloques de World Chain son de 2 segundos: con eso se calcula el "hace". */
+  const hace = b => {
+    const seg = Math.max(0, (bloqueRegistro - b) * 2);
+    if(seg < 60) return 'recién';
+    if(seg < 3600) return 'hace ' + Math.floor(seg/60) + ' min';
+    return 'hace ' + Math.floor(seg/3600) + ' h';
+  };
+  el.innerHTML = registro.map(r => {
+    if(r.tipo === 'hecho'){
+      return '<div class="log ' + (r.gano ? 'gane' : 'fallo') + '">' +
+        '<div><b>⚔️ Atacaste a ' + corta(r.victima) + '</b>' +
+        '<small>' + (r.gano ? 'Ganaste · te llevaste ' + fmt(r.botin) + ' de miel'
+                            : 'Te rebotó su guardiana (nivel ' + r.nDef + ')') +
+        ' · ' + hace(r.bloque) + '</small></div></div>';
+    }
+    return '<div class="log ' + (r.gano ? 'mal' : 'bien') + '">' +
+      '<div><b>🛡️ ' + corta(r.atacante) + ' te atacó</b>' +
+      '<small>' + (r.gano ? 'Te sacó ' + fmt(r.botin) + ' de miel' : 'Tu guardiana lo frenó') +
+      ' · ' + hace(r.bloque) + '</small></div>' +
+      (r.gano ? '<button class="acc rojo" onclick="BZG.atacar(\'' + r.atacante + '\')">Vengarme</button>' : '') +
+      '</div>';
+  }).join('');
 }
 
 /* ---------- la ventana de te atacaron ---------- */
@@ -3669,8 +3732,8 @@ function pintarRegistro(){
  * registro, y para entonces ya no le importa.
  */
 function avisarAtaque(){
-  const vistos = Number(localStorage.getItem('buzzGuerraVisto') || 0);
-  const nuevos = registro.filter(r => r.bloque > vistos && r.gano);
+  const vistos = Number(localStorage.getItem(claveVisto(yo)) || 0);
+  const nuevos = registro.filter(r => r.tipo === 'recibido' && r.bloque > vistos && r.gano);
   if(!nuevos.length) return;
 
   const total = nuevos.reduce((s, r) => s + r.botin, 0);
@@ -3687,8 +3750,8 @@ function avisarAtaque(){
   };
   $('capaAtaque').classList.add('on');
 
-  const max = Math.max(...registro.map(r => r.bloque));
-  localStorage.setItem('buzzGuerraVisto', String(max));
+  const max = Math.max(...nuevos.map(r => r.bloque));
+  localStorage.setItem(claveVisto(yo), String(max));
 }
 
 function cerrarAtaque(){ $('capaAtaque').classList.remove('on'); }
