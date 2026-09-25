@@ -289,6 +289,10 @@ const GRANJA = '0x88d66cc79131fd065a1df2eab2ea6a05b88352af';
 const GUERRA = '0x5671436c585a5946f761038df6e03559ceeb05b1';
 const TOKEN  = '0xf9f44acea8d3f7f34ff9766cbbe5293f11b719fe';
 const RPC    = 'https://worldchain-mainnet.g.alchemy.com/public';
+/* El lector junta en una consulta lo que antes eran veinte. Sin el, buscar
+   rivales recorria miles de bloques y saturaba el servidor: fallaba la
+   guerra y de paso la granja, porque comparten el mismo. */
+const LECTOR = '0xb868e998639f3c02f356ef4cb61196dd10112244';
 
 /* Hasta que la cuenta llegue a cero, solo esta wallet entra. */
 const DUENO   = '0x3de83b386c983426547b3b42e50b810ab9a25deb';
@@ -344,16 +348,60 @@ async function leer(to, firma, tEnt, vals, tSal){
   return null;
 }
 
-async function firmar(llamadas, exito){
-  if(!MK) { aviso('Abrí el juego desde World App'); return false; }
-  try{
-    const { finalPayload } = await MK.commandsAsync.sendTransaction({ transaction: llamadas });
-    if(finalPayload.status === 'error'){ aviso('No se pudo firmar'); return false; }
-    aviso(exito || 'Listo');
-    setTimeout(bajarTodo, 2500);
-    return true;
-  }catch(e){ aviso('No se pudo firmar'); return false; }
+/**
+ * Firma a traves de la granja.
+ *
+ * Esta pantalla vive adentro de un iframe, y desde ahi MiniKit no siempre
+ * se puede usar: el navegador puede bloquear el acceso a la ventana de
+ * arriba. Asi que la guerra no firma: le pasa el pedido a la granja, que
+ * es la que tiene MiniKit de verdad, y espera la respuesta.
+ */
+let pendientes = {};
+function firmar(llamadas, exito){
+  return new Promise(resolve => {
+    /* Adentro de un marco se firma SIEMPRE por la granja: MiniKit puede
+       verse desde aca y aun asi fallar al usarlo. */
+    const enMarco = window.parent && window.parent !== window;
+    if(!enMarco && MK && MK.commandsAsync){
+      MK.commandsAsync.sendTransaction({ transaction: llamadas })
+        .then(r => {
+          const ok = r.finalPayload.status !== 'error';
+          aviso(ok ? (exito || 'Listo') : 'No se pudo firmar');
+          if(ok) setTimeout(bajarTodo, 2500);
+          resolve(ok);
+        })
+        .catch(() => { aviso('No se pudo firmar'); resolve(false); });
+      return;
+    }
+
+    if(!window.parent || window.parent === window){
+      aviso('Abrí la guerra desde la granja');
+      resolve(false);
+      return;
+    }
+
+    const id = 'f' + Date.now() + Math.random().toString(36).slice(2,7);
+    pendientes[id] = (ok) => {
+      aviso(ok ? (exito || 'Listo') : 'No se pudo firmar');
+      if(ok) setTimeout(bajarTodo, 2500);
+      resolve(ok);
+    };
+    window.parent.postMessage({ buzz:'firmar', id, llamadas }, '*');
+
+    /* Si la granja no contesta, no dejar el boton colgado para siempre. */
+    setTimeout(() => {
+      if(pendientes[id]){ delete pendientes[id]; aviso('No hubo respuesta'); resolve(false); }
+    }, 90000);
+  });
 }
+
+window.addEventListener('message', ev => {
+  const d = ev.data;
+  if(!d || d.buzz !== 'firmado' || !pendientes[d.id]) return;
+  const f = pendientes[d.id];
+  delete pendientes[d.id];
+  f(!!d.ok);
+});
 
 /* ---------- traer el estado ---------- */
 const ACEL = { 1:{horas:1, precio:0, tengo:0}, 3:{horas:3, precio:0, tengo:0} };
@@ -377,40 +425,50 @@ async function bajarCatalogo(){
 }
 
 async function bajarMio(){
-  const [e, b] = await Promise.all([
-    leer(GUERRA,'miEstado(address,address)',['address','address'],[TOKEN,yo],
-      ['uint16','uint16','uint16','uint16','uint64','uint8','uint32','uint32','uint256']),
-    /* El mismo miEstado que usa la granja, para que el BUZZ que se ve aca
-       sea exactamente el mismo que se ve alla. */
+  /* Una consulta trae la guerra entera: guardiana, guerrera, escudo,
+     ataques, la miel en riesgo, el catalogo con mis niveles y los
+     aceleradores. Antes eran mas de veinte. */
+  const [g, b] = await Promise.all([
+    leer(LECTOR,'verGuerra(address,address)',['address','address'],[TOKEN,yo],
+      ['uint16','uint16','uint64','uint8','uint256',
+       'tuple(uint256,uint16,bool,bool,uint16,uint64,uint8,bool)[]','uint32[2]']),
     leer(BANCO,'miEstado(address,address)',['address','address'],[TOKEN,yo],
       ['uint256','uint256','uint256'])
   ]);
-  if(!e) return;
-  const m = await mielEnPanales(yo);
-  mio = { guardiaId:Number(e[0])-1, guerreraId:Number(e[1])-1,
-          nivelGuardia:Number(e[2]), nivelGuerrera:Number(e[3]),
-          escudoHasta:Number(e[4]), ataques:Number(e[5]),
-          ganados:Number(e[6]), perdidos:Number(e[7]), robado:num(e[8]),
+  if(!g) return;
+  const e = g, m = num(g[4]);
+  mio = { guardiaId:Number(g[0])-1, guerreraId:Number(g[1])-1,
+          nivelGuardia:0, nivelGuerrera:0,
+          escudoHasta:Number(g[2]), ataques:Number(g[3]),
+          ganados:0, perdidos:0, robado:0,
           miel: m, buzz: b ? num(b[0]) : 0 };
 
-  for(const u of cat){
-    const n = await leer(GUERRA,'nivel(address,address,uint256)',['address','address','uint256'],
-      [TOKEN, yo, u.id], ['uint16']);
-    u.mio = n ? Number(n[0]) : 0;
-    if(u.mio > 0){
-      const en = await leer(GUERRA,'entrenoDe(address,address,uint256)',['address','address','uint256'],
-        [TOKEN, yo, u.id], ['uint64','uint8','bool']);
-      u.entreno = en && Number(en[0]) > 0
-        ? { termina:Number(en[0]), acelerados:Number(en[1]), listo:en[2] } : null;
-    }
-  }
+  /* El catalogo con mis niveles y entrenamientos ya viene en la misma
+     respuesta: no hay que preguntarlo unidad por unidad. */
+  const us = g[5];
+  let ig = 0, ia = 0;
+  cat = us.map((u, i) => {
+    const esG = u[2];
+    const fila = { id:i, precio:num(u[0]), nivelIni:Number(u[1]), esGuardiana:esG,
+                   activa:u[3], mio:Number(u[4]),
+                   img: esG ? GUARDIA_IMG[ig] : GUERRA_IMG[ia],
+                   nombre: esG ? NOMBRES_G[ig] : NOMBRES_A[ia],
+                   entreno: Number(u[5]) > 0
+                     ? { termina:Number(u[5]), acelerados:Number(u[6]), listo:u[7] } : null };
+    if(esG) ig++; else ia++;
+    return fila;
+  });
 
-  for(const h of [1,3]){
-    const a = await leer(GUERRA,'aceleradores(address,address,uint32)',['address','address','uint32'],
-      [TOKEN, yo, h], ['uint32']);
-    ACEL[h].tengo = a ? Number(a[0]) : 0;
-    const p = await leer(GUERRA,'precioAcel(address,uint32)',['address','uint32'],[TOKEN,h],['uint256']);
-    ACEL[h].precio = p ? num(p[0]) : 0;
+  if(mio.guardiaId  >= 0 && cat[mio.guardiaId])  mio.nivelGuardia  = cat[mio.guardiaId].mio;
+  if(mio.guerreraId >= 0 && cat[mio.guerreraId]) mio.nivelGuerrera = cat[mio.guerreraId].mio;
+
+  ACEL[1].tengo = Number(g[6][0]);
+  ACEL[3].tengo = Number(g[6][1]);
+  if(!ACEL[1].precio){
+    for(const h of [1,3]){
+      const p = await leer(GUERRA,'precioAcel(address,uint32)',['address','uint32'],[TOKEN,h],['uint256']);
+      ACEL[h].precio = p ? num(p[0]) : 0;
+    }
   }
 }
 
@@ -436,92 +494,41 @@ async function mielEnPanales(dir){
 async function bajarRivales(refrescar){
   if(buscando) return;
   buscando = true;
-
-  /* La busqueda recorre miles de bloques y tarda. Se guarda el resultado
-     para que la segunda vez sea al instante; el boton de refrescar la
-     rehace cuando el jugador quiere. */
-  const GUARDADO = 'buzzGuerraColmenas';
-  if(!refrescar){
-    try{
-      const g = JSON.parse(localStorage.getItem(GUARDADO) || 'null');
-      if(g && g.cuando > ahora() - 3600 && g.lista.length){
-        rivales = g.lista;
-        buscando = false;
-        await refrescarEscudos();
-        pintar();
-        return;
-      }
-    }catch(e){}
-  }
-
   try{
-    const hasta = parseInt(await rpc('eth_blockNumber', []), 16);
-    /* Desde que se desplegó el banco: mirar solo el ultimo tramo dejaba
-       afuera a todos los que habian jugado antes. */
-    const desde = 35243000;
-    const temas = [[
-      ethers.id('Depositado(address,address,uint256)'),
-      ethers.id('Cobrado(address,address,uint256,address)')
-    ]];
-    const vistos = new Set();
-    const PASO = 100, ALAVEZ = 14;
-
-    for(let b = desde; b <= hasta; ){
-      const tandas = [];
-      for(let k = 0; k < ALAVEZ && b <= hasta; k++, b += PASO){
-        tandas.push(rpc('eth_getLogs', [{ address: BANCO,
-          fromBlock: '0x' + b.toString(16),
-          toBlock:   '0x' + Math.min(b + PASO - 1, hasta).toString(16),
-          topics: temas }]).catch(() => []));
-      }
-      (await Promise.all(tandas)).flat().forEach(l => {
-        if(l.topics && l.topics[2]) vistos.add('0x' + l.topics[2].slice(26));
-      });
-      const el = $('listaRivales');
-      if(el) el.innerHTML = '<div class="nada">Buscando colmenas… ' + vistos.size + '</div>';
-    }
-
-    vistos.delete(yo.toLowerCase());
-    vistos.delete('0x' + '0'.repeat(40));
+    /* Una sola consulta al lector: el trae las colmenas con sus escudos ya
+       resueltos. Antes esto recorria la cadena de a cien bloques. */
+    const n = await leer(LECTOR,'cuantosJugadores()',[],[],['uint256']);
+    const total = n ? Number(n[0]) : 0;
 
     const lista = [];
-    for(const d of vistos){
-      const mp = await leer(GRANJA,'abiertos(address,address)',['address','address'],[TOKEN,d],['uint8']);
-      if(!mp || Number(mp[0]) === 0) continue;       // ni empezo a jugar
-      const o = await leer(GUERRA,'verObjetivo(address,address)',['address','address'],[TOKEN,d],
-        ['bool','uint64','uint256']);
-      /* Cuantos panales tiene abiertos da una idea del tamaño de la colmena
-         sin revelar cuanta miel guarda: eso se sabe al atacar. */
-      lista.push({ dir:d, sePuede:o ? o[0] : true,
-                   escudoHasta:o ? Number(o[1]) : 0,
-                   panales:Number(mp[0]) });
+    for(let d = 0; d < total; d += 50){
+      const r = await leer(LECTOR,'verObjetivos(address,address,uint256,uint256)',
+        ['address','address','uint256','uint256'], [TOKEN, yo, d, 50],
+        ['tuple(address,uint8,bool,uint64)[]']);
+      if(!r) break;
+      for(const o of r[0]){
+        lista.push({ dir: String(o[0]).toLowerCase(), panales: Number(o[1]),
+                     sePuede: o[2], escudoHasta: Number(o[3]) });
+      }
     }
     /* Las colmenas mas grandes primero: son las que valen la pena. */
     lista.sort((a,b) => b.panales - a.panales);
     rivales = lista;
-    try{
-      localStorage.setItem(GUARDADO, JSON.stringify({ cuando: ahora(), lista }));
-    }catch(e){}
-  }catch(e){ rivales = []; }
+  }catch(e){}
   buscando = false;
   pintar();
 }
 
 /** Vuelve a mirar solo quien tiene escudo: es lo unico que cambia seguido. */
-async function refrescarEscudos(){
-  for(const r of rivales.slice(0, mostrando)){
-    const o = await leer(GUERRA,'verObjetivo(address,address)',['address','address'],[TOKEN,r.dir],
-      ['bool','uint64','uint256']);
-    if(o){ r.sePuede = o[0]; r.escudoHasta = Number(o[1]); }
-  }
-  pintar();
-}
+/* Los escudos ya vienen con la lista del lector, asi que refrescar es
+   volver a pedirla: una consulta y listo. */
+async function refrescarEscudos(){ await bajarRivales(); }
 
 /** Los ataques que me hicieron, para el registro y la venganza. */
 async function bajarRegistro(){
   try{
     const hasta = parseInt(await rpc('eth_blockNumber', []), 16);
-    const desde = Math.max(0, hasta - 20000);
+    const desde = Math.max(0, hasta - 8000);   // un dia y medio alcanza
     const tema = ethers.id('Atacada(address,address,address,bool,uint256,uint16,uint16)');
     const yoT = '0x' + '0'.repeat(24) + yo.slice(2).toLowerCase();
     const res = [];
@@ -548,7 +555,6 @@ async function bajarTodo(){
   if(cargando) return;
   cargando = true;
   try{
-    if(!cat.length) await bajarCatalogo();
     await bajarMio();
     pintar();
   }catch(e){}
@@ -704,7 +710,7 @@ function pintarRivales(){
   el.innerHTML = h;
 }
 
-function verMas(){ mostrando += 10; pintarRivales(); }
+function verMas(){ mostrando += 10; pintarRivales(); refrescarEscudos(); }
 
 function pintarEntreno(){
   let h = '<div class="tiendaAcel">';
