@@ -3001,6 +3001,72 @@ async function bloqueActual(){
    cuentas, una no le tapa la alerta a la otra. */
 const claveVisto = dir => 'buzzGuerraVisto:' + String(dir || '').toLowerCase();
 
+
+/* ===================== ATAQUES DESDE EL EXPLORADOR =====================
+   Recorrer la cadena de a tramos es lento y los servidores publicos lo
+   cortan: por eso el registro no llegaba a leerse. El explorador de World
+   Chain (Blockscout) ya tiene guardados los eventos del contrato de la
+   guerra y los da de una sola vez. Si el explorador no responde, se
+   recorren las ultimas 6 horas por la cadena como repuesto. */
+const EXPLORADOR = 'https://worldchain-mainnet.explorer.alchemy.com/api/v2/addresses/';
+
+async function logsGuerraExplorador(desde){
+  const tema = TEMA_ATACADA().toLowerCase();
+  const out = [];
+  let params = null;
+  for(let pag = 0; pag < 8; pag++){
+    const url = EXPLORADOR + GUERRA_DIR + '/logs' + (params ? '?' + new URLSearchParams(params) : '');
+    const r = await fetch(url);
+    if(!r.ok) throw new Error('explorador ' + r.status);
+    const j = await r.json();
+    let llegoAlFinal = false;
+    for(const it of (j.items || [])){
+      const bn = Number(it.block_number);
+      if(bn < desde){ llegoAlFinal = true; continue; }
+      const ts = (it.topics || []).filter(Boolean).map(t => String(t).toLowerCase());
+      if(ts[0] === tema && ts.length >= 4) out.push({ topics: ts, data: it.data, blockNumber: '0x' + bn.toString(16) });
+    }
+    if(llegoAlFinal || !j.next_page_params) break;
+    params = j.next_page_params;
+  }
+  return out;
+}
+
+/** Los ataques de una wallet: los que recibio y los que hizo. */
+async function ataquesDe(dir, desde, hasta){
+  const d = '0x' + '0'.repeat(24) + String(dir).toLowerCase().slice(2);
+  let logs;
+  try{
+    logs = await logsGuerraExplorador(desde);
+  }catch(e){
+    const tema = TEMA_ATACADA();
+    const corto = Math.max(desde, hasta - 10800);          // 6 horas
+    const [a, b] = await Promise.all([
+      eventosEntre({ address: GUERRA_DIR, topics: [tema, null, null, d] }, corto, hasta),
+      eventosEntre({ address: GUERRA_DIR, topics: [tema, null, d] }, corto, hasta),
+    ]);
+    logs = [...a, ...b].map(l => ({ ...l, topics: l.topics.map(t => t.toLowerCase()) }));
+  }
+  /* Atacada(token, atacante, victima): tercer tema = atacante, cuarto = victima. */
+  return { recibidos: logs.filter(l => l.topics[3] === d),
+           hechos:    logs.filter(l => l.topics[2] === d) };
+}
+
+/* Mis ataques tambien se guardan en el telefono apenas termina la pelea:
+   asi aparecen en el registro aunque la cadena tarde en responder. */
+const claveMisAtaques = dir => 'buzzMisAtaques:' + String(dir || '').toLowerCase();
+function guardarMiAtaque(dir, a){
+  try{
+    const k = claveMisAtaques(dir);
+    const lista = JSON.parse(localStorage.getItem(k) || '[]');
+    lista.unshift(a);
+    localStorage.setItem(k, JSON.stringify(lista.slice(0, 40)));
+  }catch(e){}
+}
+function misAtaquesGuardados(dir){
+  try{ return JSON.parse(localStorage.getItem(claveMisAtaques(dir)) || '[]'); }catch(e){ return []; }
+}
+
 /* ===================== NOMBRES DE USUARIO DE WORLD APP =====================
    En vez de mostrar la wallet (0x3d3c…A186) se muestra el nombre de usuario
    de World App. Se pregunta al servicio publico de nombres de World y, si no
@@ -3092,7 +3158,7 @@ async function revisarAtaquesRecibidos(){
     const tema = TEMA_ATACADA();
     const yoT = '0x' + '0'.repeat(24) + miDir.slice(2);
     /* Atacada(token, atacante, victima): la victima soy yo. */
-    const logs = await eventosEntre({ address: GUERRA_DIR, topics: [tema, null, null, yoT] }, desde, hasta);
+    const logs = (await ataquesDe(miDir, desde, hasta)).recibidos;
     revisadoHasta = hasta;
 
     const robos = logs.map(l => {
@@ -3380,10 +3446,7 @@ async function bajarRegistro(){
     const tema = ethers.id('Atacada(address,address,address,bool,uint256,uint16,uint16)');
     const yoT = '0x' + '0'.repeat(24) + yo.slice(2).toLowerCase();
     /* Atacada(token, atacante, victima): tercer tema = atacante, cuarto = victima. */
-    const [recibidos, hechos] = await Promise.all([
-      eventosEntre({ address: GUERRA, topics: [tema, null, null, yoT] }, desde, hasta),
-      eventosEntre({ address: GUERRA, topics: [tema, null, yoT] }, desde, hasta),
-    ]);
+    const { recibidos, hechos } = await ataquesDe(yo, desde, hasta);
     const leer = (l, tipo) => {
       const d = coder().decode(['bool','uint256','uint16','uint16'], l.data);
       return { tipo, atacante: '0x' + l.topics[2].slice(26).toLowerCase(),
@@ -3392,8 +3455,13 @@ async function bajarRegistro(){
                bloque: parseInt(l.blockNumber,16) };
     };
     bloqueRegistro = hasta;
-    registro = [...recibidos.map(l => leer(l, 'recibido')), ...hechos.map(l => leer(l, 'hecho'))]
-      .sort((x, y) => y.bloque - x.bloque).slice(0, 40);
+    const lista = [...recibidos.map(l => leer(l, 'recibido')), ...hechos.map(l => leer(l, 'hecho'))];
+    /* Se suman los ataques guardados en el telefono que la cadena todavia no devolvio. */
+    misAtaquesGuardados(yo).forEach(a => {
+      if(a.bloque >= desde && !lista.some(x => x.tipo === 'hecho' && x.bloque === a.bloque && x.victima === a.victima))
+        lista.push({ ...a, tipo:'hecho' });
+    });
+    registro = lista.sort((x, y) => y.bloque - x.bloque).slice(0, 40);
   }catch(e){
     /* Sin cartel de error para el jugador: se deja lo que habia y se
        vuelve a intentar solo en 20 segundos. */
@@ -3516,7 +3584,9 @@ async function esperarResultado(dir, desde){
       const l = (logs || [])[ (logs || []).length - 1 ];
       if(l){
         const d = coder().decode(['bool','uint256','uint16','uint16'], l.data);
-        return { gano: d[0], botin: num(d[1]), nAtq: Number(d[2]), nDef: Number(d[3]) };
+        const res = { gano: d[0], botin: num(d[1]), nAtq: Number(d[2]), nDef: Number(d[3]) };
+        guardarMiAtaque(yo, { atacante: yo, victima: dir, ...res, bloque: parseInt(l.blockNumber, 16) });
+        return res;
       }
     }catch(e){}
     await new Promise(r => setTimeout(r, 2500));
