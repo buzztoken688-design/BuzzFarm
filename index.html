@@ -1848,43 +1848,49 @@ const aWei = v => ethers.parseUnits(String(v || 0), 18);
 
 /* ---- traer el catálogo de abejas del contrato ---- */
 async function bajarCatalogo(){
-  /* El catalogo entero en una consulta, en vez de una por abeja. */
-  const todas = await leer(LECTOR,'verAbejas(address)',['address'],[TOKEN],
-    ['tuple(uint8,uint256,uint256,uint256,uint32,uint8,bool)[]']);
-  if(todas){
-    catalogo = todas[0].map((a, i) => ({
-      id:i, rareza:Number(a[0]), costo:num(a[1]), miel:num(a[2]),
-      comida:num(a[3]), dias:Number(a[4]), porciones:Number(a[5]), activa:a[6]
-    }));
-  }else{
-    catalogo = [];
+  /* Primero por el lector, que lo trae todo en una consulta. Si falla —y
+     hoy fallo— se lee de la granja como siempre: sin catalogo, la app no
+     sabe que abeja es cada una y las muestra todas como Obrera. */
+  catalogo = [];
+  try{
+    const todas = await leer(LECTOR,'verAbejas(address)',['address'],[TOKEN],
+      ['tuple(uint8,uint256,uint256,uint256,uint32,uint8,bool)[]']);
+    if(todas && todas[0] && todas[0].length){
+      catalogo = todas[0].map((a, i) => ({
+        id:i, rareza:Number(a[0]), costo:num(a[1]), miel:num(a[2]),
+        comida:num(a[3]), dias:Number(a[4]), porciones:Number(a[5]), activa:a[6]
+      }));
+    }
+  }catch(e){}
+
+  if(!catalogo.length){
+    const n = await leer(GRANJA,'cantidadAbejas(address)',['address'],[TOKEN],['uint256']);
+    const cuantas = n ? Number(n[0]) : 0;
+    for(let i = 0; i < cuantas; i++){
+      const r = await leer(GRANJA,'verAbeja(address,uint256)',['address','uint256'],[TOKEN,i],
+        ['uint8','uint256','uint256','uint256','uint32','uint8','bool']);
+      if(!r) continue;
+      catalogo.push({ id:i, rareza:Number(r[0]), costo:num(r[1]), miel:num(r[2]),
+                      comida:num(r[3]), dias:Number(r[4]),
+                      porciones:Number(r[5]), activa:r[6] });
+    }
   }
-  if(false){
-  const n = 0;
-  for(let i = 0; i < n; i++){
-    /* El contrato ya no devuelve el nombre: la pantalla tiene el suyo en
-       los tres idiomas, asi que guardarlo en cadena era trabajo doble. */
-    const r = await leer(GRANJA,'verAbeja(address,uint256)',['address','uint256'],[TOKEN,i],
-      ['uint8','uint256','uint256','uint256','uint32','uint8','bool']);
-    catalogo.push({ id:i, rareza:Number(r[0]), costo:num(r[1]), miel:num(r[2]),
-                    comida:num(r[3]), dias:Number(r[4]),
-                    porciones:Number(r[5]), activa:r[6] });
-  }
-  }
-  /* El contrato guarda las tandas viejas apagadas y despues las nuevas, las
-     dos en el mismo orden de trece. Hay que reconocer TODAS, aunque las
+
+  /* El contrato guarda las tandas viejas apagadas y despues las nuevas,
+     todas en el mismo orden de trece. Hay que reconocer TODAS, aunque las
      viejas ya no se vendan: los jugadores siguen teniendo abejas de esos
      tipos y si no se las reconoce aparecen todas como Obrera. */
   const orden = Object.keys(ABEJAS);
   catalogo.forEach(c => { CLAVE_DE[c.id] = orden[c.id % orden.length]; });
 
-  /* Para la Tienda, en cambio, solo cuentan las que siguen activas: son las
-     que se pueden comprar y las que traen los precios de hoy. */
+  /* Para la Tienda solo cuentan las activas: son las que se pueden comprar
+     y las que traen los precios de hoy. */
   catalogo.filter(c => c.activa).forEach((c, i) => {
     const k = orden[i]; if(!k) return;
     const a = ABEJAS[k];
     a.idCadena = c.id; a.costo = c.costo; a.miel = c.miel;
     a.comida = c.comida; a.dias = c.dias; a.activa = c.activa;
+    if(c.porciones) a.raciones = c.porciones;
     a.tope = Math.round(c.miel * 2);
     a.gasta = c.costo + c.comida * c.dias;
     a.saca  = c.miel * c.dias / MIEL_POR_BUZZ;
@@ -2890,7 +2896,12 @@ async function bajarMio(){
     leerSeguro(BANCO,'miEstado(address,address)',['address','address'],[TOKEN,yo],
       ['uint256','uint256','uint256'])
   ]);
-  if(!g) return;
+  /* Si el lector no contesta, se leen las unidades de la guerra una por
+     una: sin catalogo no se ve ninguna guerrera ni guardiana. */
+  if(!g){
+    await bajarCatalogoGuerra();
+    return;
+  }
   const e = g, m = num(g[4]);
   mioG = { guardiaId:Number(g[0])-1, guerreraId:Number(g[1])-1,
           nivelGuardia:0, nivelGuerrera:0,
@@ -3283,6 +3294,51 @@ document.querySelectorAll('#guerraCapa [data-p]').forEach(b => {
 }
 
 
+
+/** Respaldo: lee la guerra del contrato directo, sin el lector. */
+async function bajarCatalogoGuerra(){
+  const n = await leerSeguro(GUERRA,'cantidadUnidades(address)',['address'],[TOKEN],['uint256']);
+  if(!n) return;
+  const e = await leerSeguro(GUERRA,'miEstado(address,address)',['address','address'],[TOKEN,yo],
+    ['uint16','uint16','uint16','uint16','uint64','uint8','uint32','uint32','uint256']);
+  const b = await leerSeguro(BANCO,'miEstado(address,address)',['address','address'],[TOKEN,yo],
+    ['uint256','uint256','uint256']);
+  if(!e) return;
+
+  mioG = { guardiaId:Number(e[0])-1, guerreraId:Number(e[1])-1,
+           nivelGuardia:Number(e[2]), nivelGuerrera:Number(e[3]),
+           escudoHasta:Number(e[4]), ataques:Number(e[5]),
+           ganados:Number(e[6]), perdidos:Number(e[7]), robado:num(e[8]),
+           miel:0, buzz: b ? num(b[0]) : 0 };
+
+  catG = [];
+  let ig = 0, ia = 0;
+  for(let i = 0; i < Number(n[0]); i++){
+    const u = await leerSeguro(GUERRA,'verUnidad(address,uint256)',['address','uint256'],[TOKEN,i],
+      ['uint256','uint16','bool','bool']);
+    if(!u) continue;
+    const esG = u[2];
+    const mi = await leerSeguro(GUERRA,'nivel(address,address,uint256)',
+      ['address','address','uint256'], [TOKEN, yo, i], ['uint16']);
+    const en = await leerSeguro(GUERRA,'entrenoDe(address,address,uint256)',
+      ['address','address','uint256'], [TOKEN, yo, i], ['uint64','uint8','bool']);
+    catG.push({ id:i, precio:num(u[0]), nivelIni:Number(u[1]), esGuardiana:esG, activa:u[3],
+                mio: mi ? Number(mi[0]) : 0,
+                img: esG ? GUARDIA_IMG[ig] : GUERRA_IMG[ia],
+                nombre: esG ? NOMBRES_G[ig] : NOMBRES_A[ia],
+                entreno: en && Number(en[0]) > 0
+                  ? { termina:Number(en[0]), acelerados:Number(en[1]), listo:en[2] } : null });
+    if(esG) ig++; else ia++;
+  }
+  for(const h of [1,3]){
+    const a = await leerSeguro(GUERRA,'aceleradores(address,address,uint32)',
+      ['address','address','uint32'], [TOKEN, yo, h], ['uint32']);
+    ACEL[h].tengo = a ? Number(a[0]) : 0;
+    const pr = await leerSeguro(GUERRA,'precioAcel(address,uint32)',['address','uint32'],[TOKEN,h],['uint256']);
+    ACEL[h].precio = pr ? num(pr[0]) : 0;
+  }
+  pintarG();
+}
 
 /* ---- abrir y cerrar la guerra ---- */
 const GUERRA_ABRE_EN = 1790398492;   // 26/09/2026 04:54
