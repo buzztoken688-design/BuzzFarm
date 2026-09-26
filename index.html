@@ -3431,6 +3431,10 @@ async function bajarCatalogo(){
   }
 }
 
+/* Cuando se renuevan los ataques. Antes el texto decia "hasta manana"
+   fijo, y con la ventana de seis horas eso ya no es cierto. */
+let proximaTanda = 0;
+
 async function bajarMio(){
   /* Una consulta trae la guerra entera: guardiana, guerrera, escudo,
      ataques, la miel en riesgo, el catalogo con mis niveles y los
@@ -3443,6 +3447,12 @@ async function bajarMio(){
       ['uint256','uint256','uint256'])
   ]);
   if(!g) return;
+
+  /* Cuando vuelven los ataques: con la ventana de seis horas el texto ya no
+     puede decir "hasta manana". */
+  const pt = await leer(GUERRA,'proximaTanda(address)',['address'],[TOKEN],['uint64']);
+  if(pt) proximaTanda = Number(pt[0]);
+
   const e = g, m = num(g[4]);
   mio = { guardiaId:Number(g[0])-1, guerreraId:Number(g[1])-1,
           nivelGuardia:0, nivelGuerrera:0,
@@ -3838,7 +3848,7 @@ function pintar(){
 
   $('cupo').innerHTML = '<span>' + (mio.ataques > 0
       ? 'Te quedan <b style="color:var(--crema)">' + mio.ataques + '</b> ataques hoy'
-      : 'Sin ataques hasta mañana') + '</span>';
+      : 'Sin ataques · vuelven en ' + reloj(segs(proximaTanda))) + '</span>';
 
   pintarRivales();
   pintarEntreno();
