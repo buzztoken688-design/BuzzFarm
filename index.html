@@ -3225,7 +3225,7 @@ async function leerGuardiaGranja(){
    boton para vengarse: abre la guerra y ataca directo al que le robo.
    Comparte la marca 'buzzGuerraVisto' con la guerra, asi no se avisa dos veces. */
 const TEMA_ATACADA = () => ethers.id('Atacada(address,address,address,bool,uint256,uint16,uint16)');
-const GUERRA_DIR = '0x5671436c585a5946f761038df6e03559ceeb05b1';
+const GUERRA_DIR = '0x448cfefd8380b33a0c38a6f7c6e6ab4f4b490888';
 let atacanteAlerta = null, revisadoHasta = 0;
 
 async function rpcGranja(metodo, params){
@@ -3319,7 +3319,7 @@ const IMG = IMG_GUERRA;   // las mismas imágenes que usa la granja
 
 const BANCO  = '0xfc9bc00d4445fea7c6c99fecd02cd4cac6337e18';
 const GRANJA = '0x88d66cc79131fd065a1df2eab2ea6a05b88352af';
-const GUERRA = '0x5671436c585a5946f761038df6e03559ceeb05b1';
+const GUERRA = '0x448cfefd8380b33a0c38a6f7c6e6ab4f4b490888';
 const TOKEN  = '0xf9f44acea8d3f7f34ff9766cbbe5293f11b719fe';
 const RPC    = 'https://worldchain-mainnet.g.alchemy.com/public';
 /* El lector junta en una consulta lo que antes eran veinte. Sin el, buscar
@@ -3431,6 +3431,10 @@ async function bajarCatalogo(){
   }
 }
 
+/* Cuando se renuevan los ataques. Antes el texto decia "hasta manana"
+   fijo, y con la ventana de seis horas eso ya no es cierto. */
+let proximaTanda = 0;
+
 async function bajarMio(){
   /* Una consulta trae la guerra entera: guardiana, guerrera, escudo,
      ataques, la miel en riesgo, el catalogo con mis niveles y los
@@ -3443,6 +3447,12 @@ async function bajarMio(){
       ['uint256','uint256','uint256'])
   ]);
   if(!g) return;
+
+  /* Cuando vuelven los ataques: con la ventana de seis horas el texto ya no
+     puede decir "hasta manana". */
+  const pt = await leer(GUERRA,'proximaTanda(address)',['address'],[TOKEN],['uint64']);
+  if(pt) proximaTanda = Number(pt[0]);
+
   const e = g, m = num(g[4]);
   mio = { guardiaId:Number(g[0])-1, guerreraId:Number(g[1])-1,
           nivelGuardia:0, nivelGuerrera:0,
@@ -3633,33 +3643,39 @@ async function bajarTodo(){
 async function comprar(id){
   const u = cat.find(x => x.id === id); if(!u) return;
   if(mio.buzz < u.precio) return aviso('Te faltan ' + fmt(u.precio - mio.buzz) + ' BUZZ');
-  await firmar([aGuerra('comprar(address,uint256)', ['address','uint256'], [TOKEN, id])],
+  const ok = await firmar([aGuerra('comprar(address,uint256)', ['address','uint256'], [TOKEN, id])],
     'Compraste ' + u.nombre);
+  if(ok) setTimeout(bajarTodo, 1500);
 }
 
 async function poner(id){
-  await firmar([aGuerra('elegir(address,uint256)', ['address','uint256'], [TOKEN, id])], 'Listo');
+  const ok = await firmar([aGuerra('elegir(address,uint256)', ['address','uint256'], [TOKEN, id])], 'Listo');
+  if(ok) setTimeout(bajarTodo, 1500);
 }
 
 async function entrenar(id){
   const u = cat.find(x => x.id === id); if(!u || !u.mio) return;
-  await firmar([aGuerra('entrenar(address,uint256)', ['address','uint256'], [TOKEN, id])],
+  const ok = await firmar([aGuerra('entrenar(address,uint256)', ['address','uint256'], [TOKEN, id])],
     'Empezó a entrenar');
+  if(ok) setTimeout(bajarTodo, 1500);
 }
 
 async function cobrarEntreno(id){
-  await firmar([aGuerra('cobrarEntreno(address,uint256)', ['address','uint256'], [TOKEN, id])],
+  const ok = await firmar([aGuerra('cobrarEntreno(address,uint256)', ['address','uint256'], [TOKEN, id])],
     'Subió de nivel');
+  if(ok) setTimeout(bajarTodo, 1500);
 }
 
 async function comprarAcel(h){
-  await firmar([aGuerra('comprarAcelerador(address,uint32,uint32)', ['address','uint32','uint32'],
+  const ok = await firmar([aGuerra('comprarAcelerador(address,uint32,uint32)', ['address','uint32','uint32'],
     [TOKEN, h, 1])], 'Acelerador comprado');
+  if(ok) setTimeout(bajarTodo, 1500);
 }
 
 async function usarAcel(id, h){
-  await firmar([aGuerra('acelerar(address,uint256,uint32)', ['address','uint256','uint32'],
+  const ok = await firmar([aGuerra('acelerar(address,uint256,uint32)', ['address','uint256','uint32'],
     [TOKEN, id, h])], 'Le quitaste ' + h + ' h al entrenamiento');
+  if(ok) setTimeout(bajarTodo, 1500);
 }
 
 async function atacar(dir){
@@ -3838,7 +3854,7 @@ function pintar(){
 
   $('cupo').innerHTML = '<span>' + (mio.ataques > 0
       ? 'Te quedan <b style="color:var(--crema)">' + mio.ataques + '</b> ataques hoy'
-      : 'Sin ataques hasta mañana') + '</span>';
+      : 'Sin ataques · vuelven en ' + reloj(segs(proximaTanda))) + '</span>';
 
   pintarRivales();
   pintarEntreno();
